@@ -141,6 +141,13 @@
           return p.clientId === c.id && p.stage !== 'postado' && (p.postOk || p.postDate);
         }).length;
       }
+      // Combinado de postagem: ou dias fixos da semana, ou datas escolhidas.
+      if (!c.schedule || typeof c.schedule !== 'object') {
+        c.schedule = { mode: 'semanal', weekdays: [], dates: [] };
+      }
+      if (!Array.isArray(c.schedule.weekdays)) c.schedule.weekdays = [];
+      if (!Array.isArray(c.schedule.dates)) c.schedule.dates = [];
+      if (c.schedule.mode !== 'manual') c.schedule.mode = 'semanal';
     });
 
     s.demands.forEach(function (d) {
@@ -317,6 +324,76 @@
         if (a.calc.estoque !== b.calc.estoque) return a.calc.estoque - b.calc.estoque;
         return (a.client.name || '').localeCompare(b.client.name || '');
       });
+  }
+
+  /* ---------- agenda de post combinada com o cliente ---------- */
+  var WD_MINI = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+
+  // Datas em que este cliente posta, de `from` ate `dias` a frente.
+  // Modo semanal: os dias fixos combinados. Modo manual: as datas escolhidas.
+  function postSlots(client, from, dias) {
+    var sch = client.schedule || {};
+    var inicio = from || today();
+    var janela = dias == null ? 14 : dias;
+    var fim = addDays(inicio, janela);
+
+    if (sch.mode === 'manual') {
+      return (sch.dates || [])
+        .filter(function (d) { return d >= inicio && d <= fim; })
+        .slice().sort();
+    }
+
+    var out = [];
+    for (var i = 0; i <= janela; i++) {
+      var d = addDays(inicio, i);
+      if ((sch.weekdays || []).indexOf(parse(d).getDay()) !== -1) out.push(d);
+    }
+    return out;
+  }
+
+  function hasSchedule(client) {
+    var sch = client.schedule || {};
+    return sch.mode === 'manual' ? (sch.dates || []).length > 0 : (sch.weekdays || []).length > 0;
+  }
+
+  // Frase curta do combinado, pra mostrar no card ("Ter, Qua e Qui").
+  function scheduleLabel(client) {
+    var sch = client.schedule || {};
+    if (sch.mode === 'manual') {
+      var n = (sch.dates || []).length;
+      return n ? n + ' data' + (n === 1 ? '' : 's') + ' marcada' + (n === 1 ? '' : 's') : '';
+    }
+    var dias = (sch.weekdays || []).slice().sort();
+    if (!dias.length) return '';
+    var nomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    var lista = dias.map(function (d) { return nomes[d]; });
+    if (lista.length === 1) return lista[0];
+    return lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1];
+  }
+
+  // O conteudo marcado pra sair naquele dia, se ja existir.
+  function productionAt(clientId, date) {
+    return state.productions.find(function (p) {
+      return p.clientId === clientId && p.postDate === date;
+    }) || null;
+  }
+
+  // Todos os posts previstos pra hoje, de todos os clientes.
+  function postsDoDia(date) {
+    var d = date || today();
+    var out = [];
+    state.clients.forEach(function (c) {
+      if (postSlots(c, d, 0).indexOf(d) === -1) return;
+      var p = productionAt(c.id, d);
+      out.push({
+        client: c, production: p,
+        pronto: !!(p && (p.postOk || p.stage === 'postado'))
+      });
+    });
+    return out.sort(function (a, b) {
+      if (a.pronto !== b.pronto) return a.pronto ? 1 : -1;
+      return (a.client.name || '').localeCompare(b.client.name || '');
+    });
   }
 
   // Soma rapida nos contadores do cliente, direto no card (sem abrir form).
@@ -541,6 +618,9 @@
     // clientes / producao
     STAGES: STAGES, clientStatus: clientStatus, clientsByPriority: clientsByPriority,
     clientName: clientName, productionsOfWeek: productionsOfWeek, bumpClient: bumpClient,
+    // agenda de post
+    WD_MINI: WD_MINI, postSlots: postSlots, hasSchedule: hasSchedule,
+    scheduleLabel: scheduleLabel, productionAt: productionAt, postsDoDia: postsDoDia,
     // equipe e cobrancas
     DEMAND_STATUS: DEMAND_STATUS, demandLate: demandLate, demandDaysLate: demandDaysLate,
     demandsOf: demandsOf, demandsOfClient: demandsOfClient, openDemands: openDemands,

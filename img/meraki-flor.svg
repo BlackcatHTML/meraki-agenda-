@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <!-- Lírio simples, traço fino, sem fundo. Vive atrás de todas as telas;
+       a opacidade e o desvanecimento das bordas ficam no CSS. -->
+  <g transform="translate(540,1120)" fill="none" stroke="#CFD0D4"
+     stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- seis pétalas iguais, giradas em torno do centro -->
+    <g>
+      <path d="M0 -14 C -34 -86, -20 -196, 0 -258 C 20 -196, 34 -86, 0 -14 Z"/>
+      <path d="M0 -14 C -34 -86, -20 -196, 0 -258 C 20 -196, 34 -86, 0 -14 Z" transform="rotate(60)"/>
+      <path d="M0 -14 C -34 -86, -20 -196, 0 -258 C 20 -196, 34 -86, 0 -14 Z" transform="rotate(120)"/>
+      <path d="M0 -14 C -34 -86, -20 -196, 0 -258 C 20 -196, 34 -86, 0 -14 Z" transform="rotate(180)"/>
+      <path d="M0 -14 C -34 -86, -20 -196, 0 -258 C 20 -196, 34 -86, 0 -14 Z" transform="rotate(240)"/>
+      <path d="M0 -14 C -34 -86, -20 -196, 0 -258 C 20 -196, 34 -86, 0 -14 Z" transform="rotate(300)"/>
+    </g>
+
+    <!-- nervura central de cada pétala, bem discreta -->
+    <g stroke-width="2" opacity=".6">
+      <path d="M0 -40 L0 -214"/>
+      <path d="M0 -40 L0 -214" transform="rotate(60)"/>
+      <path d="M0 -40 L0 -214" transform="rotate(120)"/>
+      <path d="M0 -40 L0 -214" transform="rotate(180)"/>
+      <path d="M0 -40 L0 -214" transform="rotate(240)"/>
+      <path d="M0 -40 L0 -214" transform="rotate(300)"/>
+    </g>
+
+    <!-- estames -->
+    <g stroke-width="3">
+      <path d="M0 -8 C -14 -54, -26 -88, -44 -112"/>
+      <path d="M0 -8 C 0 -56, 2 -96, 4 -126"/>
+      <path d="M0 -8 C 16 -52, 30 -84, 48 -106"/>
+    </g>
+    <g stroke-width="2.5">
+      <ellipse cx="-48" cy="-120" rx="11" ry="5" transform="rotate(-38 -48 -120)"/>
+      <ellipse cx="4" cy="-134" rx="11" ry="5" transform="rotate(-6 4 -134)"/>
+      <ellipse cx="53" cy="-114" rx="11" ry="5" transform="rotate(34 53 -114)"/>
+    </g>
+
+    <circle cx="0" cy="0" r="9" stroke-width="3"/>
+  </g>
+</svg>

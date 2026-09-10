@@ -191,6 +191,27 @@ A partir desses números:
 A lista já vem ordenada por urgência: primeiro quem está pior, depois quem tem o
 maior buraco na semana, depois no mês, depois quem tem menos estoque.
 
+### Dias de post combinados
+
+Dentro de **Editar** de cada cliente tem o bloco *Dias de post combinados*, com
+dois jeitos de preencher:
+
+- **Toda semana** — toque nos dias fixos. Se o combinado é terça, quarta e quinta,
+  marque T, Q e Q. O card passa a mostrar "Ter, Qua e Qui".
+- **Datas escolhidas** — pra quem posta em dias aleatórios. Escolhe a data,
+  toca em *Adicionar*, e ela vira uma etiqueta. Pra tirar, toca no × dela.
+
+Com isso preenchido, a ficha do cliente ganha a seção **Agenda de post**, com os
+próximos 14 dias. Cada data aparece de um jeito:
+
+- Com conteúdo marcado — mostra o título, a etapa e se o post já foi configurado.
+- Sem conteúdo — fica em vermelho, com um **+** que já cria o conteúdo naquela data,
+  com o cliente preenchido.
+
+E na tela **Hoje** aparece **Posts de hoje**: todo cliente que posta hoje, com o
+conteúdo dele ou o aviso de que não tem nada. É por ali que a cobrança sai na hora
+certa, sem depender de você lembrar o combinado de cada um.
+
 ---
 
 ## 6. Equipe — o que você cobra de cada um
@@ -242,7 +263,7 @@ meraki/
 ├── OneSignalSDKWorker.js   worker do push — precisa ficar na raiz
 ├── netlify.toml            publish + headers de cache
 ├── css/app.css             todo o visual
-├── img/                    marca d’água do fundo
+├── img/                    o lírio da marca d’água
 ├── js/config.js            onde vai o App ID do OneSignal
 ├── js/store.js             dados, datas, regras de status
 ├── js/push.js              integração com o OneSignal
@@ -250,7 +271,7 @@ meraki/
 └── icons/                  ícones 192, 512, maskable e o do iPhone
 ```
 
-**Paleta:** prata `#CFD0D4` e `#9A9BA1` sobre vinho quase preto `#14080A`.
+**Paleta:** prata `#CFD0D4` e `#9A9BA1` sobre fundo preto, com um lírio de marca d’água.
 cherry dark `#42121F` · near black `#1C0B12`.
 **Tipografia:** Space Grotesk (títulos) + IBM Plex Sans (texto) + IBM Plex Mono (rótulos).
 

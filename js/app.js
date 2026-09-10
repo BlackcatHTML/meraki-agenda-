@@ -98,6 +98,33 @@
         '<div class="empty">Ninguém devendo nada. Aproveita.</div>') +
       '</section>';
 
+    // Posts combinados pra hoje — vem da agenda de cada cliente
+    var posts = S.postsDoDia(t);
+    if (posts.length) {
+      var faltando = posts.filter(function (x) { return !x.pronto; }).length;
+      h += '<section class="section">' + secHead('Posts de hoje', faltando + '/' + posts.length);
+      h += posts.map(function (x) {
+        var p = x.production;
+        var meta = [];
+        // Sem conteúdo, o título já é o nome do cliente — não repete embaixo.
+        if (p) meta.push('<span>' + esc(x.client.name) + '</span>');
+        if (p) {
+          meta.push('<span class="badge">' + esc(stageLabel(p.stage)) + '</span>');
+          meta.push('<span>' + (x.pronto ? 'post configurado' : 'falta configurar o post') + '</span>');
+        } else {
+          meta.push('<span class="badge b-alert">sem conteúdo pra hoje</span>');
+        }
+        return '<a class="item" data-accent="' + (x.pronto ? 'ok' : 'alert') + '" href="#/cliente/' + x.client.id + '">' +
+          '<div class="item-main">' +
+          '<p class="item-title">' + esc(p ? p.title : x.client.name) + '</p>' +
+          '<div class="item-meta">' + meta.join('') + '</div>' +
+          '</div>' +
+          '<div class="item-actions"><span class="icon-btn" aria-hidden="true">' + ICON.open + '</span></div>' +
+          '</a>';
+      }).join('');
+      h += '</section>';
+    }
+
     // Tarefas do dia
     h += '<section class="section">' + secHead('Tarefas de hoje', tasks.length);
     h += tasks.length ? tasks.map(function (x) { return taskItem(x, t); }).join('')
@@ -427,12 +454,16 @@
       '<span class="sr-label">' + esc(label) + '</span></button>';
   }
 
-  function prodForm(id) {
+  function prodForm(id, preset) {
+    preset = preset || {};
     var p = id ? S.find('productions', id) : null;
     var isNew = !p;
     p = p || {
-      title: '', clientId: (S.state.clients[0] || {}).id || '', stage: 'roteiro',
-      victorOk: false, postOk: false, postDate: ''
+      title: '',
+      clientId: preset.clientId || (S.state.clients[0] || {}).id || '',
+      stage: 'roteiro',
+      victorOk: false, postOk: false,
+      postDate: preset.postDate || ''
     };
 
     var clientOptions = S.state.clients.length
@@ -535,7 +566,9 @@
       stepper(c.id, 'scheduled', 'Agendados', k.agendados) +
       '</div>';
 
+    var agenda = S.scheduleLabel(c);
     h += '<div class="item-meta" style="margin-top:10px">' +
+      (agenda ? '<span class="badge">' + esc(agenda) + '</span>' : '') +
       '<span>' + k.produced + '/' + k.needed + ' no mês</span>' +
       (nLinks ? '<span class="sep">·</span><span>' + nLinks + ' link' + (nLinks === 1 ? '' : 's') + '</span>' : '') +
       (nTasks ? '<span class="sep">·</span><span>' + nTasks + ' a fazer</span>' : '') +
@@ -581,13 +614,94 @@
       '<input class="input" type="number" min="0" max="999" id="c-sched" value="' + num(c.scheduled) + '"></div>' +
       '</div>' +
 
+      '<p class="label" style="margin-top:4px">Dias de post combinados</p>' +
+      '<div id="schedBox"></div>' +
+
       '<div class="field"><label for="c-notes">Dados e combinados</label>' +
       '<textarea class="input" id="c-notes" style="min-height:140px" placeholder="@ do perfil, dia de gravação, tom de voz, o que pode e o que não pode, contato do responsável...">' + esc(c.notes || '') + '</textarea></div>' +
       '<button class="btn" type="submit">' + (isNew ? 'Cadastrar' : 'Salvar') + '</button>' +
       (isNew ? '' : '<div style="height:10px"></div><button class="btn danger" type="button" data-act="delete-client" data-id="' + c.id + '">' + ICON.trash + 'Excluir</button>') +
       '</form>';
 
+    // Cópia de trabalho: só entra no cliente quando ela salvar o formulário.
+    var sch = {
+      mode: (c.schedule && c.schedule.mode) || 'semanal',
+      weekdays: ((c.schedule && c.schedule.weekdays) || []).slice(),
+      dates: ((c.schedule && c.schedule.dates) || []).slice()
+    };
+
     openSheet(isNew ? 'Novo cliente' : 'Editar cliente', html, function (root) {
+      var box = root.querySelector('#schedBox');
+
+      function pintaAgenda() {
+        var h = '';
+        h += '<div class="chips" style="margin-bottom:10px">' +
+          '<button type="button" class="chip" data-sched="semanal" aria-pressed="' + (sch.mode === 'semanal' ? 'true' : 'false') + '">Toda semana</button>' +
+          '<button type="button" class="chip" data-sched="manual" aria-pressed="' + (sch.mode === 'manual' ? 'true' : 'false') + '">Datas escolhidas</button>' +
+          '</div>';
+
+        if (sch.mode === 'semanal') {
+          h += '<div class="weekdays">';
+          for (var d = 0; d < 7; d++) {
+            h += '<button type="button" class="wd" data-wd="' + d + '" ' +
+              'aria-pressed="' + (sch.weekdays.indexOf(d) !== -1 ? 'true' : 'false') + '">' +
+              S.WD_MINI[d] + '</button>';
+          }
+          h += '</div>';
+          h += '<p class="hint">' + (sch.weekdays.length
+            ? 'Posta ' + esc(S.scheduleLabel({ schedule: sch })) + '.'
+            : 'Toque nos dias em que este cliente posta.') + '</p>';
+        } else {
+          h += '<div style="display:flex;gap:8px;align-items:flex-end">' +
+            '<div class="field" style="flex:1;margin:0"><input class="input" type="date" id="sched-new"></div>' +
+            '<button type="button" class="btn ghost sm" data-sched-add>Adicionar</button>' +
+            '</div>';
+          if (sch.dates.length) {
+            h += '<div class="chips" style="margin-top:10px">';
+            sch.dates.slice().sort().forEach(function (d) {
+              h += '<button type="button" class="chip" data-sched-del="' + d + '">' +
+                esc(S.fmtShort(d)) + ' ×</button>';
+            });
+            h += '</div>';
+          } else {
+            h += '<p class="hint">Nenhuma data marcada ainda.</p>';
+          }
+        }
+        box.innerHTML = h;
+      }
+
+      box.addEventListener('click', function (e) {
+        var b = e.target.closest('button');
+        if (!b) return;
+
+        if (b.hasAttribute('data-sched')) {
+          sch.mode = b.getAttribute('data-sched');
+          pintaAgenda();
+          return;
+        }
+        if (b.hasAttribute('data-wd')) {
+          var d = Number(b.getAttribute('data-wd'));
+          var i = sch.weekdays.indexOf(d);
+          if (i === -1) sch.weekdays.push(d); else sch.weekdays.splice(i, 1);
+          pintaAgenda();
+          return;
+        }
+        if (b.hasAttribute('data-sched-add')) {
+          var campo = box.querySelector('#sched-new');
+          var v = campo && campo.value;
+          if (v && sch.dates.indexOf(v) === -1) sch.dates.push(v);
+          pintaAgenda();
+          return;
+        }
+        if (b.hasAttribute('data-sched-del')) {
+          var alvo = b.getAttribute('data-sched-del');
+          sch.dates = sch.dates.filter(function (x) { return x !== alvo; });
+          pintaAgenda();
+        }
+      });
+
+      pintaAgenda();
+
       root.querySelector('#clientForm').addEventListener('submit', function (e) {
         e.preventDefault();
         var name = root.querySelector('#c-name').value.trim();
@@ -601,6 +715,7 @@
           neededWeek: Number(root.querySelector('#c-needw').value) || 0,
           ready: Number(root.querySelector('#c-ready').value) || 0,
           scheduled: Number(root.querySelector('#c-sched').value) || 0,
+          schedule: sch,
           notes: root.querySelector('#c-notes').value.trim()
         });
         closeSheet();
@@ -801,6 +916,20 @@
       : '<div class="empty">Nada pendente pra este cliente.</div>';
     h += '</section>';
 
+    // Agenda de post combinada: cada dia previsto, com ou sem conteúdo
+    var slots = S.postSlots(c, t, 14);
+    h += '<section class="section">' +
+      secHead('Agenda de post', S.hasSchedule(c) ? null : undefined);
+    if (!S.hasSchedule(c)) {
+      h += '<div class="empty">Nenhum dia combinado ainda.<br>Toque em Editar e marque em que dias este cliente posta.</div>';
+    } else {
+      h += '<p class="hint" style="margin:0 0 10px">' + esc(S.scheduleLabel(c)) + ' · próximos 14 dias</p>';
+      h += slots.length
+        ? slots.map(function (dia) { return slotItem(c, dia); }).join('')
+        : '<div class="empty">Nenhum post previsto nos próximos 14 dias.</div>';
+    }
+    h += '</section>';
+
     // O que a equipe deve (ou já entregou) por esta empresa
     var daEquipe = S.demandsOfClient(c.id);
     var equipeAbertas = daEquipe.filter(function (d) { return d.status === 'pendente'; });
@@ -845,6 +974,40 @@
     h += '</section>';
 
     view.innerHTML = h;
+  }
+
+  // Uma data prevista de post: mostra o conteúdo marcado pra ela, ou o vazio.
+  function slotItem(c, dia) {
+    var p = S.productionAt(c.id, dia);
+    var hoje = dia === S.today();
+
+    var meta = ['<span class="badge' + (hoje ? ' b-solid' : '') + '">' + esc(S.fmtShort(dia)) + '</span>'];
+    if (hoje) meta.push('<span>é hoje</span>');
+
+    if (!p) {
+      return '<div class="item" data-accent="alert">' +
+        '<div class="item-main">' +
+        '<p class="item-title">Sem conteúdo pra este dia</p>' +
+        '<div class="item-meta">' + meta.join('') + '</div>' +
+        '</div>' +
+        '<div class="item-actions">' +
+        '<button class="icon-btn" data-act="new-prod-slot" data-id="' + c.id + '" data-date="' + dia + '" aria-label="Marcar conteúdo">' + ICON.plus + '</button>' +
+        '</div></div>';
+    }
+
+    meta.push('<span class="badge">' + esc(stageLabel(p.stage)) + '</span>');
+    if (p.postOk) meta.push('<span class="badge b-ok">post configurado</span>');
+    else meta.push('<span>post ainda não configurado</span>');
+
+    var accent = p.stage === 'postado' ? 'ok' : (p.postOk ? '' : 'warn');
+    return '<div class="item" data-accent="' + accent + '">' +
+      '<div class="item-main">' +
+      '<p class="item-title">' + esc(p.title) + '</p>' +
+      '<div class="item-meta">' + meta.join('') + '</div>' +
+      '</div>' +
+      '<div class="item-actions">' +
+      '<button class="icon-btn" data-act="edit-prod" data-id="' + p.id + '" aria-label="Editar">' + ICON.edit + '</button>' +
+      '</div></div>';
   }
 
   function stageLabel(id) {
@@ -1271,6 +1434,9 @@
         break;
 
       case 'new-prod': prodForm(null); break;
+      case 'new-prod-slot':
+        prodForm(null, { clientId: id, postDate: btn.getAttribute('data-date') });
+        break;
       case 'edit-prod': prodForm(id); break;
       case 'delete-prod':
         if (confirm('Excluir este conteúdo?')) { S.remove('productions', id); closeSheet(); render(); Toast('Conteúdo excluído'); }
