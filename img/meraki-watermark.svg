@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <!-- Marca d'agua do Meraki: monograma + dragao.
+       Sem retangulo de fundo de proposito — assim ela deita por cima do
+       degrade do app em vez de apaga-lo. A opacidade fina fica no CSS. -->
+  <g transform="translate(225,700) scale(2.1)">
+    <text x="150" y="330" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
+          font-size="380" font-weight="700" fill="#cfd0d4" opacity="0.10">M</text>
+
+    <g opacity="0.55">
+      <path d="M 150 60
+               C 100 70, 80 130, 100 180
+               C 115 215, 150 210, 155 240
+               C 160 275, 120 285, 110 320
+               C 100 355, 130 375, 150 410
+               C 165 435, 150 460, 130 480"
+            fill="none" stroke="#cfd0d4" stroke-width="22" stroke-linecap="round"/>
+      <path d="M 150 60
+               C 100 70, 80 130, 100 180
+               C 115 215, 150 210, 155 240
+               C 160 275, 120 285, 110 320
+               C 100 355, 130 375, 150 410
+               C 165 435, 150 460, 130 480"
+            fill="none" stroke="#0a0a0a" stroke-width="4" stroke-linecap="round"/>
+
+      <path d="M 150 60 L 140 30 L 150 45 L 160 25 L 165 50 L 178 32 L 172 62 Z" fill="#cfd0d4"/>
+      <path d="M 95 175 C 60 165, 40 140, 55 110 C 70 130, 85 130, 90 150 Z" fill="#cfd0d4"/>
+      <path d="M 60 320 C 40 335, 20 330, 20 310 C 35 315, 45 305, 55 300 Z" fill="#cfd0d4"/>
+      <path d="M 130 480 C 145 500, 175 500, 180 475 C 165 480, 150 475, 140 465 Z" fill="#cfd0d4"/>
+
+      <path d="M 150 60 C 175 55, 195 65, 200 90 C 210 110, 195 130, 175 125 C 185 105, 175 80, 150 75 Z" fill="#cfd0d4"/>
+      <circle cx="185" cy="90" r="4" fill="#0a0a0a"/>
+    </g>
+  </g>
+</svg>

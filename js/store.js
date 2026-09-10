@@ -94,9 +94,10 @@
       clients: [],
       productions: [],
       links: [],
-      traffic: { leads: '', notes: '', updatedAt: '' },
+      team: [],
+      demands: [],
       notes: '',
-      settings: { oneSignalAppId: '', pushAsked: false }
+      settings: { oneSignalAppId: '', pushAsked: false, trafficMigrado: false }
     };
   }
 
@@ -110,15 +111,64 @@
     s.clients = Array.isArray(s.clients) ? s.clients : [];
     s.productions = Array.isArray(s.productions) ? s.productions : [];
     s.links = Array.isArray(s.links) ? s.links : [];
-    s.traffic = s.traffic && typeof s.traffic === 'object' ? s.traffic : base.traffic;
+    s.team = Array.isArray(s.team) ? s.team : [];
+    s.demands = Array.isArray(s.demands) ? s.demands : [];
     s.notes = typeof s.notes === 'string' ? s.notes : '';
     s.settings = s.settings && typeof s.settings === 'object' ? s.settings : base.settings;
     if (typeof s.settings.oneSignalAppId !== 'string') s.settings.oneSignalAppId = '';
+
     s.tasks.forEach(function (t) {
       if (!Array.isArray(t.doneDates)) t.doneDates = [];
       if (!t.kind) t.kind = 'task';
       if (!t.repeat) t.repeat = 'none';
     });
+
+    // Clientes agora contam por semana tambem, e os numeros de prontos e
+    // agendados sao editaveis na mao. Quem ja existia recebe o valor
+    // calculado da producao como ponto de partida.
+    s.clients.forEach(function (c) {
+      if (typeof c.needed !== 'number') c.needed = Number(c.needed) || 0;
+      if (typeof c.produced !== 'number') c.produced = Number(c.produced) || 0;
+      if (c.neededWeek == null) c.neededWeek = c.needed ? Math.max(1, Math.round(c.needed / 4)) : 0;
+      if (c.producedWeek == null) c.producedWeek = 0;
+      if (c.ready == null) {
+        c.ready = s.productions.filter(function (p) {
+          return p.clientId === c.id && p.stage === 'pronto';
+        }).length;
+      }
+      if (c.scheduled == null) {
+        c.scheduled = s.productions.filter(function (p) {
+          return p.clientId === c.id && p.stage !== 'postado' && (p.postOk || p.postDate);
+        }).length;
+      }
+    });
+
+    s.demands.forEach(function (d) {
+      if (!Array.isArray(d.chargedDates)) d.chargedDates = [];
+      if (!d.status) d.status = 'pendente';
+    });
+
+    // O bloco de trafego morava solto na Producao da semana. Virou cobranca
+    // de um membro da equipe. Se ela ja tinha preenchido algo, nao se perde.
+    if (s.traffic && (String(s.traffic.leads || '').trim() || String(s.traffic.notes || '').trim())
+        && !s.settings.trafficMigrado) {
+      var joe = s.team.filter(function (m) { return /joe/i.test(m.name); })[0];
+      if (!joe) {
+        joe = { id: uid(), name: 'Joe', role: 'Gestor de tráfego', active: true, notes: '', createdAt: Date.now() };
+        s.team.push(joe);
+      }
+      s.demands.push({
+        id: uid(), memberId: joe.id, clientId: '',
+        title: 'Relatório de tráfego da semana',
+        detail: 'Leads captados e o que ajustar.',
+        due: today(), status: 'entregue', chargedDates: [], deliveredAt: today(),
+        leads: String(s.traffic.leads || ''), result: String(s.traffic.notes || ''),
+        createdAt: Date.now()
+      });
+      s.settings.trafficMigrado = true;
+    }
+    delete s.traffic;
+
     s.version = 1;
     return s;
   }
@@ -225,25 +275,21 @@
     { id: 'postado', label: 'Postado' }
   ];
 
-  // Status calculado a partir da producao real, nao de um campo manual.
+  // Os numeros sao os que ela mantem na mao (prontos, agendados, feitos na
+  // semana). O status sai deles; a semana manda, o mes e acompanhamento.
   function clientStatus(client) {
-    var t = today();
-    var mine = state.productions.filter(function (p) { return p.clientId === client.id; });
-
-    // Posts com data futura ja definida (ou marcados como configurados).
-    var agendados = mine.filter(function (p) {
-      return p.stage !== 'postado' && (p.postOk || (p.postDate && daysBetween(t, p.postDate) >= 0));
-    }).length;
-
-    // Estoque = o que esta pronto e ainda nao foi postado.
-    var estoque = mine.filter(function (p) { return p.stage === 'pronto'; }).length;
-
     var produced = Number(client.produced) || 0;
     var needed = Number(client.needed) || 0;
+    var producedWeek = Number(client.producedWeek) || 0;
+    var neededWeek = Number(client.neededWeek) || 0;
+    var estoque = Number(client.ready) || 0;
+    var agendados = Number(client.scheduled) || 0;
+
+    var deficitWeek = Math.max(0, neededWeek - producedWeek);
     var deficit = Math.max(0, needed - produced);
 
     var status, severity, accent;
-    if (deficit > 0 && agendados === 0) {
+    if (deficitWeek > 0 && agendados === 0) {
       status = 'Sem conteúdo pra semana'; severity = 3; accent = 'alert';
     } else if (estoque < 2) {
       status = 'Precisa de novo roteiro'; severity = 2; accent = 'warn';
@@ -254,7 +300,9 @@
     return {
       status: status, severity: severity, accent: accent,
       produced: produced, needed: needed, deficit: deficit,
-      agendados: agendados, estoque: estoque, total: mine.length
+      producedWeek: producedWeek, neededWeek: neededWeek, deficitWeek: deficitWeek,
+      agendados: agendados, estoque: estoque,
+      total: state.productions.filter(function (p) { return p.clientId === client.id; }).length
     };
   }
 
@@ -264,10 +312,20 @@
       .map(function (c) { return { client: c, calc: clientStatus(c) }; })
       .sort(function (a, b) {
         if (a.calc.severity !== b.calc.severity) return b.calc.severity - a.calc.severity;
+        if (a.calc.deficitWeek !== b.calc.deficitWeek) return b.calc.deficitWeek - a.calc.deficitWeek;
         if (a.calc.deficit !== b.calc.deficit) return b.calc.deficit - a.calc.deficit;
         if (a.calc.estoque !== b.calc.estoque) return a.calc.estoque - b.calc.estoque;
         return (a.client.name || '').localeCompare(b.client.name || '');
       });
+  }
+
+  // Soma rapida nos contadores do cliente, direto no card (sem abrir form).
+  function bumpClient(id, field, delta) {
+    var c = state.clients.find(function (x) { return x.id === id; });
+    if (!c) return;
+    var v = (Number(c[field]) || 0) + delta;
+    c[field] = Math.max(0, Math.min(999, v));
+    save();
   }
 
   function clientName(id) {
@@ -311,6 +369,107 @@
     return state.tasks
       .filter(function (t) { return t.clientId === clientId; })
       .sort(function (a, b) { return (a.date || '') < (b.date || '') ? -1 : 1; });
+  }
+
+  /* ---------- equipe e cobrancas ----------
+     Uma "demand" e uma coisa que ela cobra de alguem: o que e, pra quando,
+     de qual cliente, se ja entregou, e o historico de quantas vezes cobrou. */
+
+  var DEMAND_STATUS = {
+    pendente: { label: 'Em aberto', accent: 'warn' },
+    entregue: { label: 'Entregue', accent: 'ok' },
+    'nao-entregue': { label: 'Não entregou', accent: 'alert' }
+  };
+
+  // Pendente com prazo vencido conta como atrasada.
+  function demandLate(d) {
+    return d.status === 'pendente' && d.due && daysBetween(d.due, today()) > 0;
+  }
+  function demandDaysLate(d) {
+    return demandLate(d) ? daysBetween(d.due, today()) : 0;
+  }
+
+  function demandsOf(memberId) {
+    return state.demands
+      .filter(function (d) { return d.memberId === memberId; })
+      .sort(ordenaDemand);
+  }
+  function demandsOfClient(clientId) {
+    return state.demands
+      .filter(function (d) { return d.clientId === clientId; })
+      .sort(ordenaDemand);
+  }
+  function openDemands() {
+    return state.demands
+      .filter(function (d) { return d.status === 'pendente'; })
+      .sort(ordenaDemand);
+  }
+
+  // Em aberto primeiro, mais atrasado no topo; entregues por ultimo.
+  function ordenaDemand(a, b) {
+    var pa = a.status === 'pendente' ? 0 : 1;
+    var pb = b.status === 'pendente' ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    if (pa === 0) return (a.due || '9999') < (b.due || '9999') ? -1 : 1;
+    return (b.deliveredAt || '') < (a.deliveredAt || '') ? -1 : 1;
+  }
+
+  // Registra que cobrou hoje (sem duplicar se cobrar duas vezes no mesmo dia).
+  function chargeDemand(id) {
+    var d = state.demands.find(function (x) { return x.id === id; });
+    if (!d) return;
+    var t = today();
+    if (d.chargedDates.indexOf(t) === -1) d.chargedDates.push(t);
+    save();
+  }
+  function lastCharge(d) {
+    if (!d.chargedDates || !d.chargedDates.length) return '';
+    return d.chargedDates.slice().sort()[d.chargedDates.length - 1];
+  }
+  // Cobranças feitas na semana passada — util pra lembrar o que ficou pendurado.
+  function chargedLastWeek(d) {
+    var inicio = addDays(weekStart(today()), -7);
+    var fim = addDays(inicio, 6);
+    return (d.chargedDates || []).filter(function (x) { return x >= inicio && x <= fim; });
+  }
+
+  function setDemandStatus(id, status, extra) {
+    var d = state.demands.find(function (x) { return x.id === id; });
+    if (!d) return;
+    d.status = status;
+    d.deliveredAt = status === 'entregue' ? today() : '';
+    if (extra) {
+      if (extra.result != null) d.result = extra.result;
+      if (extra.leads != null) d.leads = extra.leads;
+    }
+    save();
+  }
+
+  function memberName(id) {
+    var m = state.team.find(function (x) { return x.id === id; });
+    return m ? m.name : 'Sem responsável';
+  }
+
+  // Contagem que aparece na lista da equipe.
+  function memberSummary(memberId) {
+    var mine = demandsOf(memberId);
+    return {
+      total: mine.length,
+      abertas: mine.filter(function (d) { return d.status === 'pendente'; }).length,
+      atrasadas: mine.filter(demandLate).length,
+      entregues: mine.filter(function (d) { return d.status === 'entregue'; }).length,
+      furadas: mine.filter(function (d) { return d.status === 'nao-entregue'; }).length
+    };
+  }
+
+  function teamByUrgency() {
+    return state.team
+      .map(function (m) { return { member: m, calc: memberSummary(m.id) }; })
+      .sort(function (a, b) {
+        if (a.calc.atrasadas !== b.calc.atrasadas) return b.calc.atrasadas - a.calc.atrasadas;
+        if (a.calc.abertas !== b.calc.abertas) return b.calc.abertas - a.calc.abertas;
+        return (a.member.name || '').localeCompare(b.member.name || '');
+      });
   }
 
   function productionsOfClient(clientId) {
@@ -381,7 +540,13 @@
     tasksOn: tasksOn, pendingCharges: pendingCharges, overdueTasks: overdueTasks,
     // clientes / producao
     STAGES: STAGES, clientStatus: clientStatus, clientsByPriority: clientsByPriority,
-    clientName: clientName, productionsOfWeek: productionsOfWeek,
+    clientName: clientName, productionsOfWeek: productionsOfWeek, bumpClient: bumpClient,
+    // equipe e cobrancas
+    DEMAND_STATUS: DEMAND_STATUS, demandLate: demandLate, demandDaysLate: demandDaysLate,
+    demandsOf: demandsOf, demandsOfClient: demandsOfClient, openDemands: openDemands,
+    chargeDemand: chargeDemand, lastCharge: lastCharge, chargedLastWeek: chargedLastWeek,
+    setDemandStatus: setDemandStatus, memberName: memberName,
+    memberSummary: memberSummary, teamByUrgency: teamByUrgency,
     // links e visao por cliente
     PLATFORMS: PLATFORMS, platformOf: platformOf, extractUrl: extractUrl,
     linksOf: linksOf, tasksOfClient: tasksOfClient, productionsOfClient: productionsOfClient,

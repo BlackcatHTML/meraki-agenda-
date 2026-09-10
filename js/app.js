@@ -354,7 +354,6 @@
   function viewProducao() {
     var a = S.weekStart(weekRef), b = S.weekEnd(weekRef);
     var list = S.productionsOfWeek(weekRef);
-    var tr = S.state.traffic;
     var postados = list.filter(function (p) { return p.stage === 'postado'; }).length;
 
     var h = '';
@@ -375,18 +374,17 @@
 
     h += '<button class="btn" data-act="new-prod">' + ICON.plus + 'Novo conteúdo</button>';
 
-    // Relatorio de trafego (Joe)
-    h += '<div class="divider"></div>';
-    h += '<section class="section">' + secHead('Relatório de tráfego · Joe');
-    h += '<div class="card">';
-    h += '<div class="field"><label for="tr-leads">Leads captados na semana</label>' +
-      '<input class="input" id="tr-leads" inputmode="numeric" value="' + esc(tr.leads || '') + '" placeholder="Ex.: 34"></div>';
-    h += '<div class="field"><label for="tr-notes">Observações da reunião</label>' +
-      '<textarea class="input" id="tr-notes" placeholder="Custo por lead, campanha que rodou melhor, o que ajustar...">' + esc(tr.notes || '') + '</textarea></div>';
-    h += '<div class="status-line"><span class="status-dot' + (tr.updatedAt ? ' on' : ' off') + '"></span>' +
-      (tr.updatedAt ? 'Atualizado em ' + esc(tr.updatedAt) : 'Nunca atualizado') + '</div>';
-    h += '<button class="btn cherry" data-act="save-traffic">Salvar relatório</button>';
-    h += '</div></section>';
+    // O relatorio de trafego saiu daqui: virou cobranca na aba Equipe,
+    // vinculada a quem entrega e a qual cliente.
+    var abertas = S.openDemands();
+    if (abertas.length) {
+      h += '<div class="divider"></div>';
+      h += '<section class="section">' + secHead('Esperando a equipe', abertas.length);
+      h += abertas.slice(0, 4).map(function (d) { return demandItem(d, true); }).join('');
+      h += '<div style="height:10px"></div>';
+      h += '<button class="btn ghost" data-act="go" data-hash="#/equipe">Ver a equipe</button>';
+      h += '</section>';
+    }
 
     view.innerHTML = h;
   }
@@ -500,6 +498,17 @@
     view.innerHTML = h;
   }
 
+  // Um contador que ela mexe com o polegar, sem abrir formulário.
+  function stepper(clientId, field, label, value, alvo) {
+    return '<div class="stepper">' +
+      '<span class="stepper-label">' + esc(label) + '</span>' +
+      '<div class="stepper-row">' +
+      '<button class="stepper-btn" data-act="bump" data-id="' + clientId + '" data-field="' + field + '" data-delta="-1" aria-label="Menos um">&minus;</button>' +
+      '<b class="stepper-n">' + value + (alvo != null ? '<i>/' + alvo + '</i>' : '') + '</b>' +
+      '<button class="stepper-btn" data-act="bump" data-id="' + clientId + '" data-field="' + field + '" data-delta="1" aria-label="Mais um">+</button>' +
+      '</div></div>';
+  }
+
   function clientCard(r) {
     var c = r.client, k = r.calc;
     var pct = k.needed > 0 ? Math.min(100, Math.round((k.produced / k.needed) * 100)) : 0;
@@ -507,42 +516,71 @@
 
     var nLinks = S.linksOf(c.id).length;
     var nTasks = S.tasksOfClient(c.id).filter(function (t) { return !S.isDone(t, S.today()); }).length;
+    var nEquipe = S.demandsOfClient(c.id).filter(function (d) { return d.status === 'pendente'; }).length;
 
-    var h = '<a class="item" style="display:block" data-accent="' + k.accent + '" href="#/cliente/' + c.id + '">';
-    h += '<div style="display:flex;gap:12px;align-items:flex-start">';
+    var h = '<div class="item" style="display:block" data-accent="' + k.accent + '">';
+
+    // Só o cabeçalho abre a ficha — os contadores abaixo são clicáveis.
+    h += '<a href="#/cliente/' + c.id + '" style="display:flex;gap:12px;align-items:flex-start">';
     h += '<div class="item-main">' +
       '<p class="item-title">' + esc(c.name) + '</p>' +
       '<div class="item-meta">' +
       '<span class="badge b-' + k.accent + '">' + esc(k.status) + '</span>' +
       '</div></div>';
-    h += '<div class="item-actions"><span class="icon-btn" aria-hidden="true">' + ICON.open + '</span></div></div>';
+    h += '<div class="item-actions"><span class="icon-btn" aria-hidden="true">' + ICON.open + '</span></div></a>';
 
-    h += '<div class="item-meta" style="margin-top:9px">' +
-      '<span>' + k.produced + '/' + k.needed + ' vídeos no mês</span>' +
-      '<span class="sep">·</span><span>' + k.estoque + ' pronto' + (k.estoque === 1 ? '' : 's') + '</span>' +
-      '<span class="sep">·</span><span>' + k.agendados + ' agendado' + (k.agendados === 1 ? '' : 's') + '</span>' +
+    h += '<div class="steppers">' +
+      stepper(c.id, 'producedWeek', 'Semana', k.producedWeek, k.neededWeek) +
+      stepper(c.id, 'ready', 'Prontos', k.estoque) +
+      stepper(c.id, 'scheduled', 'Agendados', k.agendados) +
+      '</div>';
+
+    h += '<div class="item-meta" style="margin-top:10px">' +
+      '<span>' + k.produced + '/' + k.needed + ' no mês</span>' +
       (nLinks ? '<span class="sep">·</span><span>' + nLinks + ' link' + (nLinks === 1 ? '' : 's') + '</span>' : '') +
       (nTasks ? '<span class="sep">·</span><span>' + nTasks + ' a fazer</span>' : '') +
+      (nEquipe ? '<span class="sep">·</span><span>' + nEquipe + ' com a equipe</span>' : '') +
       '</div>';
     h += '<div class="' + barClass + '"><i style="width:' + pct + '%"></i></div>';
-    h += '</a>';
+    h += '</div>';
     return h;
   }
 
   function clientForm(id) {
     var c = id ? S.find('clients', id) : null;
     var isNew = !c;
-    c = c || { name: '', produced: 0, needed: 8, notes: '' };
+    c = c || { name: '', produced: 0, needed: 8, producedWeek: 0, neededWeek: 2, ready: 0, scheduled: 0, notes: '' };
+
+    var num = function (v) { return Number(v) || 0; };
 
     var html = '<form id="clientForm">' +
       '<div class="field"><label for="c-name">Nome do cliente</label>' +
       '<input class="input" id="c-name" required maxlength="80" value="' + esc(c.name) + '" placeholder="Ex.: Dra. Marina — Odonto"></div>' +
+
+      '<p class="label" style="margin-top:4px">Na semana</p>' +
       '<div class="row-2">' +
-      '<div class="field"><label for="c-prod">Vídeos produzidos</label>' +
-      '<input class="input" type="number" min="0" max="999" id="c-prod" value="' + (Number(c.produced) || 0) + '"></div>' +
-      '<div class="field"><label for="c-need">Necessários no mês</label>' +
-      '<input class="input" type="number" min="0" max="999" id="c-need" value="' + (Number(c.needed) || 0) + '"></div>' +
+      '<div class="field"><label for="c-prodw">Já feitos</label>' +
+      '<input class="input" type="number" min="0" max="999" id="c-prodw" value="' + num(c.producedWeek) + '"></div>' +
+      '<div class="field"><label for="c-needw">Necessários</label>' +
+      '<input class="input" type="number" min="0" max="999" id="c-needw" value="' + num(c.neededWeek) + '"></div>' +
       '</div>' +
+
+      '<p class="label" style="margin-top:4px">No mês</p>' +
+      '<div class="row-2">' +
+      '<div class="field"><label for="c-prod">Já feitos</label>' +
+      '<input class="input" type="number" min="0" max="999" id="c-prod" value="' + num(c.produced) + '"></div>' +
+      '<div class="field"><label for="c-need">Necessários</label>' +
+      '<input class="input" type="number" min="0" max="999" id="c-need" value="' + num(c.needed) + '"></div>' +
+      '</div>' +
+
+      '<p class="label" style="margin-top:4px">Estoque</p>' +
+      '<div class="row-2">' +
+      '<div class="field"><label for="c-ready">Vídeos prontos</label>' +
+      '<input class="input" type="number" min="0" max="999" id="c-ready" value="' + num(c.ready) + '"></div>' +
+      '<div class="field"><label for="c-sched">Agendados</label>' +
+      '<input class="input" type="number" min="0" max="999" id="c-sched" value="' + num(c.scheduled) + '"></div>' +
+      '</div>' +
+
       '<div class="field"><label for="c-notes">Dados e combinados</label>' +
       '<textarea class="input" id="c-notes" style="min-height:140px" placeholder="@ do perfil, dia de gravação, tom de voz, o que pode e o que não pode, contato do responsável...">' + esc(c.notes || '') + '</textarea></div>' +
       '<button class="btn" type="submit">' + (isNew ? 'Cadastrar' : 'Salvar') + '</button>' +
@@ -559,6 +597,10 @@
           name: name,
           produced: Number(root.querySelector('#c-prod').value) || 0,
           needed: Number(root.querySelector('#c-need').value) || 0,
+          producedWeek: Number(root.querySelector('#c-prodw').value) || 0,
+          neededWeek: Number(root.querySelector('#c-needw').value) || 0,
+          ready: Number(root.querySelector('#c-ready').value) || 0,
+          scheduled: Number(root.querySelector('#c-sched').value) || 0,
           notes: root.querySelector('#c-notes').value.trim()
         });
         closeSheet();
@@ -737,9 +779,14 @@
     h += '<h1>' + esc(c.name) + '</h1>';
     h += '<span class="badge b-' + k.accent + '">' + esc(k.status) + '</span>';
     h += '<div class="kv">' +
-      '<div><b>' + k.produced + '/' + k.needed + '</b><span>vídeos no mês</span></div>' +
+      '<div><b>' + k.producedWeek + '/' + k.neededWeek + '</b><span>na semana</span></div>' +
+      '<div><b>' + k.produced + '/' + k.needed + '</b><span>no mês</span></div>' +
       '<div><b>' + k.estoque + '</b><span>prontos</span></div>' +
-      '<div><b>' + k.agendados + '</b><span>agendados</span></div>' +
+      '</div>';
+    h += '<div class="steppers" style="margin-top:10px">' +
+      stepper(c.id, 'producedWeek', 'Semana', k.producedWeek, k.neededWeek) +
+      stepper(c.id, 'ready', 'Prontos', k.estoque) +
+      stepper(c.id, 'scheduled', 'Agendados', k.agendados) +
       '</div>';
     h += '<div class="hero-actions">' +
       '<button class="btn ghost" data-act="edit-client" data-id="' + c.id + '">' + ICON.edit + 'Editar</button>' +
@@ -752,6 +799,17 @@
     h += tasks.length
       ? tasks.map(function (x) { return taskItem(x, S.occursOn(x, t) ? t : x.date, true, true); }).join('')
       : '<div class="empty">Nada pendente pra este cliente.</div>';
+    h += '</section>';
+
+    // O que a equipe deve (ou já entregou) por esta empresa
+    var daEquipe = S.demandsOfClient(c.id);
+    var equipeAbertas = daEquipe.filter(function (d) { return d.status === 'pendente'; });
+    h += '<section class="section">' + secHead('Equipe neste cliente', equipeAbertas.length);
+    h += daEquipe.length
+      ? daEquipe.map(function (d) { return demandItem(d, true); }).join('')
+      : '<div class="empty">Nada cobrado da equipe por este cliente.</div>';
+    h += '<div style="height:10px"></div>';
+    h += '<button class="btn ghost" data-act="new-demand-client" data-id="' + c.id + '">' + ICON.plus + 'Cobrar alguém por este cliente</button>';
     h += '</section>';
 
     // Dados e combinados
@@ -792,6 +850,302 @@
   function stageLabel(id) {
     var s = S.STAGES.find(function (x) { return x.id === id; });
     return s ? s.label : id;
+  }
+
+  /* ============================================================
+     TELA: EQUIPE
+     Cada pessoa, o que ela deve entregar, pra quando, de qual cliente,
+     e o histórico de quantas vezes já foi cobrada.
+     ============================================================ */
+  function viewEquipe() {
+    var rows = S.teamByUrgency();
+    var abertas = S.openDemands();
+    var atrasadas = abertas.filter(S.demandLate);
+
+    var h = '';
+    h += '<h1 class="page-title">Equipe</h1>';
+    h += '<p class="page-sub">Quem te deve o quê, e desde quando.</p>';
+
+    h += '<div class="metrics">' +
+      metric(rows.length, 'Pessoas', false) +
+      metric(abertas.length, 'Em aberto', abertas.length > 0) +
+      metric(atrasadas.length, 'Atrasadas', atrasadas.length > 0) +
+      '</div>';
+
+    if (!rows.length) {
+      h += '<div class="empty">Ninguém cadastrado ainda.<br>Cadastre o Joe, o Victor, quem mais te entrega alguma coisa.</div>';
+    } else {
+      h += rows.map(memberCard).join('');
+    }
+
+    h += '<div style="height:14px"></div>';
+    h += '<button class="btn" data-act="new-member">' + ICON.plus + 'Nova pessoa</button>';
+    if (rows.length) {
+      h += '<div style="height:8px"></div>';
+      h += '<button class="btn ghost" data-act="new-demand">' + ICON.plus + 'Nova cobrança</button>';
+    }
+    view.innerHTML = h;
+  }
+
+  function memberCard(r) {
+    var m = r.member, k = r.calc;
+    var accent = k.atrasadas ? 'alert' : (k.abertas ? 'warn' : 'ok');
+
+    var h = '<a class="item" style="display:block" data-accent="' + accent + '" href="#/membro/' + m.id + '">';
+    h += '<div style="display:flex;gap:12px;align-items:flex-start">';
+    h += '<div class="item-main"><p class="item-title">' + esc(m.name) + '</p>' +
+      '<div class="item-meta">' +
+      (m.role ? '<span class="badge">' + esc(m.role) + '</span>' : '') +
+      (k.atrasadas ? '<span class="badge b-alert">' + k.atrasadas + ' atrasada' + (k.atrasadas === 1 ? '' : 's') + '</span>' : '') +
+      '</div></div>';
+    h += '<div class="item-actions"><span class="icon-btn" aria-hidden="true">' + ICON.open + '</span></div></div>';
+    h += '<div class="item-meta" style="margin-top:9px">' +
+      '<span>' + k.abertas + ' em aberto</span>' +
+      '<span class="sep">·</span><span>' + k.entregues + ' entregue' + (k.entregues === 1 ? '' : 's') + '</span>' +
+      (k.furadas ? '<span class="sep">·</span><span>' + k.furadas + ' não entregue</span>' : '') +
+      '</div>';
+    h += '</a>';
+    return h;
+  }
+
+  /* ---------- ficha da pessoa ---------- */
+  function viewMembro(id) {
+    var m = S.find('team', id);
+    if (!m) { location.hash = '#/equipe'; return; }
+
+    var k = S.memberSummary(m.id);
+    var todas = S.demandsOf(m.id);
+    var abertas = todas.filter(function (d) { return d.status === 'pendente'; });
+    var entregues = todas.filter(function (d) { return d.status === 'entregue'; });
+    var furadas = todas.filter(function (d) { return d.status === 'nao-entregue'; });
+
+    var h = '';
+    h += '<button class="back" data-act="go" data-hash="#/equipe">' + ICON.back + 'Equipe</button>';
+
+    h += '<div class="hero">';
+    h += '<h1>' + esc(m.name) + '</h1>';
+    if (m.role) h += '<span class="badge">' + esc(m.role) + '</span>';
+    h += '<div class="kv">' +
+      '<div><b>' + k.abertas + '</b><span>em aberto</span></div>' +
+      '<div><b>' + k.atrasadas + '</b><span>atrasadas</span></div>' +
+      '<div><b>' + k.entregues + '</b><span>entregues</span></div>' +
+      '</div>';
+    h += '<div class="hero-actions">' +
+      '<button class="btn ghost" data-act="edit-member" data-id="' + m.id + '">' + ICON.edit + 'Editar</button>' +
+      '<button class="btn cherry" data-act="new-demand-member" data-id="' + m.id + '">' + ICON.plus + 'Cobrança</button>' +
+      '</div>';
+    h += '</div>';
+
+    h += '<section class="section">' + secHead('Preciso cobrar', abertas.length);
+    h += abertas.length
+      ? abertas.map(function (d) { return demandItem(d, false); }).join('')
+      : '<div class="empty">Nada pendente com ' + esc(m.name.split(' ')[0]) + '.</div>';
+    h += '</section>';
+
+    if (furadas.length) {
+      h += '<section class="section">' + secHead('Não entregou', furadas.length) +
+        furadas.map(function (d) { return demandItem(d, false); }).join('') + '</section>';
+    }
+
+    h += '<section class="section">' + secHead('Já entregou', entregues.length);
+    h += entregues.length
+      ? entregues.map(function (d) { return demandItem(d, false); }).join('')
+      : '<div class="empty">Ainda não entregou nada por aqui.</div>';
+    h += '</section>';
+
+    if (m.notes) {
+      h += '<section class="section">' + secHead('Anotações') +
+        '<div class="card"><div class="notes-block">' + esc(m.notes) + '</div></div></section>';
+    }
+
+    view.innerHTML = h;
+  }
+
+  /* ---------- um item de cobrança ---------- */
+  function demandItem(d, showMember) {
+    var late = S.demandLate(d);
+    var info = S.DEMAND_STATUS[d.status] || S.DEMAND_STATUS.pendente;
+    var accent = late ? 'alert' : info.accent;
+
+    var meta = [];
+    if (showMember) meta.push('<span class="badge">' + esc(S.memberName(d.memberId)) + '</span>');
+    if (d.clientId) meta.push('<span>' + esc(S.clientName(d.clientId)) + '</span>');
+
+    if (d.status === 'pendente') {
+      if (late) {
+        var dias = S.demandDaysLate(d);
+        meta.push('<span class="badge b-alert">' + dias + ' dia' + (dias === 1 ? '' : 's') + ' atrasada</span>');
+      } else if (d.due) {
+        meta.push('<span>até ' + esc(S.fmtRelative(d.due)) + '</span>');
+      }
+    } else if (d.status === 'entregue' && d.deliveredAt) {
+      meta.push('<span class="badge b-ok">entregue ' + esc(S.fmtShort(d.deliveredAt)) + '</span>');
+    } else if (d.status === 'nao-entregue') {
+      meta.push('<span class="badge b-alert">não entregou</span>');
+    }
+
+    var nCob = (d.chargedDates || []).length;
+    if (nCob) {
+      meta.push('<span>cobrei ' + nCob + 'x · última ' + esc(S.fmtShort(S.lastCharge(d))) + '</span>');
+    }
+    var semanaPassada = S.chargedLastWeek(d).length;
+    if (semanaPassada) meta.push('<span>' + semanaPassada + 'x semana passada</span>');
+
+    var h = '<div class="item" style="display:block" data-accent="' + accent + '">';
+    h += '<div style="display:flex;gap:12px;align-items:flex-start">';
+    h += '<div class="item-main"><p class="item-title">' + esc(d.title) + '</p>' +
+      (meta.length ? '<div class="item-meta">' + meta.join('') + '</div>' : '') +
+      (d.detail ? '<p class="hint">' + esc(d.detail) + '</p>' : '') +
+      '</div>';
+    h += '<div class="item-actions">' +
+      '<button class="icon-btn" data-act="edit-demand" data-id="' + d.id + '" aria-label="Editar">' + ICON.edit + '</button>' +
+      '</div></div>';
+
+    if (d.status === 'entregue' && (d.result || d.leads)) {
+      h += '<div class="card" style="margin-top:10px;padding:11px">' +
+        (d.leads ? '<div class="item-meta" style="margin:0 0 6px"><span class="badge b-ok">' + esc(d.leads) + ' leads</span></div>' : '') +
+        (d.result ? '<div class="notes-block" style="font-size:13px">' + esc(d.result) + '</div>' : '') +
+        '</div>';
+    }
+
+    if (d.status === 'pendente') {
+      h += '<div class="demand-actions">' +
+        '<button class="btn ghost sm" data-act="charge-demand" data-id="' + d.id + '">Cobrei hoje</button>' +
+        '<button class="btn sm" data-act="deliver-demand" data-id="' + d.id + '">Entregou</button>' +
+        '<button class="btn danger sm" data-act="fail-demand" data-id="' + d.id + '">Furou</button>' +
+        '</div>';
+    } else {
+      h += '<div class="demand-actions">' +
+        '<button class="btn ghost sm" data-act="reopen-demand" data-id="' + d.id + '">Reabrir</button>' +
+        '</div>';
+    }
+
+    h += '</div>';
+    return h;
+  }
+
+  /* ---------- formulários da equipe ---------- */
+  function memberForm(id) {
+    var m = id ? S.find('team', id) : null;
+    var isNew = !m;
+    m = m || { name: '', role: '', notes: '' };
+
+    var html = '<form id="memberForm">' +
+      '<div class="field"><label for="m-name">Nome</label>' +
+      '<input class="input" id="m-name" required maxlength="60" value="' + esc(m.name) + '" placeholder="Ex.: Joe"></div>' +
+      '<div class="field"><label for="m-role">Função</label>' +
+      '<input class="input" id="m-role" maxlength="60" value="' + esc(m.role || '') + '" placeholder="Ex.: Gestor de tráfego"></div>' +
+      '<div class="field"><label for="m-notes">Anotações</label>' +
+      '<textarea class="input" id="m-notes" style="min-height:100px" placeholder="Contato, combinado de prazo, como prefere receber a demanda...">' + esc(m.notes || '') + '</textarea></div>' +
+      '<button class="btn" type="submit">' + (isNew ? 'Cadastrar' : 'Salvar') + '</button>' +
+      (isNew ? '' : '<div style="height:10px"></div><button class="btn danger" type="button" data-act="delete-member" data-id="' + m.id + '">' + ICON.trash + 'Excluir</button>') +
+      '</form>';
+
+    openSheet(isNew ? 'Nova pessoa' : 'Editar pessoa', html, function (root) {
+      root.querySelector('#memberForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = root.querySelector('#m-name').value.trim();
+        if (!name) return;
+        S.upsert('team', {
+          id: m.id, name: name,
+          role: root.querySelector('#m-role').value.trim(),
+          notes: root.querySelector('#m-notes').value.trim(),
+          active: true
+        });
+        closeSheet();
+        render();
+        Toast(isNew ? 'Pessoa cadastrada' : 'Pessoa salva');
+      });
+    });
+  }
+
+  function memberOptions(selected) {
+    if (!S.state.team.length) return '<option value="">Cadastre alguém primeiro</option>';
+    return S.state.team.slice().sort(function (a, b) {
+      return (a.name || '').localeCompare(b.name || '');
+    }).map(function (m) {
+      return opt(m.id, m.name + (m.role ? ' — ' + m.role : ''), selected || '');
+    }).join('');
+  }
+
+  function demandForm(id, preset) {
+    preset = preset || {};
+    var d = id ? S.find('demands', id) : null;
+    var isNew = !d;
+    d = d || {
+      memberId: preset.memberId || (S.state.team[0] || {}).id || '',
+      clientId: preset.clientId || '',
+      title: '', detail: '',
+      due: S.addDays(S.today(), 7),
+      status: 'pendente', chargedDates: []
+    };
+
+    var html = '<form id="demandForm">' +
+      '<div class="field"><label for="d-title">O que você precisa receber</label>' +
+      '<input class="input" id="d-title" required maxlength="140" value="' + esc(d.title) + '" placeholder="Ex.: relatório de tráfego da semana"></div>' +
+      '<div class="field"><label for="d-member">De quem</label>' +
+      '<select class="input" id="d-member">' + memberOptions(d.memberId) + '</select></div>' +
+      '<div class="field"><label for="d-client">De qual cliente</label>' +
+      '<select class="input" id="d-client">' + clientOptions(d.clientId, '— nenhum / interno —') + '</select></div>' +
+      '<div class="field"><label for="d-due">Até quando</label>' +
+      '<input class="input" type="date" id="d-due" value="' + esc(d.due || '') + '"></div>' +
+      '<div class="field"><label for="d-detail">Detalhe do que é</label>' +
+      '<textarea class="input" id="d-detail" style="min-height:90px" placeholder="O que exatamente precisa vir: número de leads, arquivo editado, print...">' + esc(d.detail || '') + '</textarea></div>' +
+      '<button class="btn" type="submit">' + (isNew ? 'Criar cobrança' : 'Salvar') + '</button>' +
+      (isNew ? '' : '<div style="height:10px"></div><button class="btn danger" type="button" data-act="delete-demand" data-id="' + d.id + '">' + ICON.trash + 'Excluir</button>') +
+      '</form>';
+
+    openSheet(isNew ? 'Nova cobrança' : 'Editar cobrança', html, function (root) {
+      root.querySelector('#demandForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var title = root.querySelector('#d-title').value.trim();
+        var memberId = root.querySelector('#d-member').value;
+        if (!title || !memberId) { Toast('Falta o título ou a pessoa'); return; }
+        S.upsert('demands', {
+          id: d.id, memberId: memberId,
+          clientId: root.querySelector('#d-client').value,
+          title: title,
+          detail: root.querySelector('#d-detail').value.trim(),
+          due: root.querySelector('#d-due').value,
+          status: d.status || 'pendente',
+          chargedDates: d.chargedDates || [],
+          deliveredAt: d.deliveredAt || '',
+          result: d.result || '', leads: d.leads || ''
+        });
+        closeSheet();
+        render();
+        Toast(isNew ? 'Cobrança criada' : 'Cobrança salva');
+      });
+    });
+  }
+
+  // Ao marcar como entregue, ela registra o que veio (ex.: leads da semana).
+  function deliverForm(id) {
+    var d = S.find('demands', id);
+    if (!d) return;
+
+    var html = '<form id="deliverForm">' +
+      '<p class="hint" style="margin:0 0 14px">' + esc(d.title) +
+      (d.clientId ? ' · ' + esc(S.clientName(d.clientId)) : '') + '</p>' +
+      '<div class="field"><label for="dv-leads">Número, se tiver (leads, vídeos, posts)</label>' +
+      '<input class="input" id="dv-leads" inputmode="numeric" value="' + esc(d.leads || '') + '" placeholder="Ex.: 34"></div>' +
+      '<div class="field"><label for="dv-result">Como foi</label>' +
+      '<textarea class="input" id="dv-result" style="min-height:110px" placeholder="O que ele falou, o que rendeu, o que ajustar na próxima...">' + esc(d.result || '') + '</textarea></div>' +
+      '<button class="btn" type="submit">Marcar como entregue</button>' +
+      '</form>';
+
+    openSheet('Entregou', html, function (root) {
+      root.querySelector('#deliverForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        S.setDemandStatus(d.id, 'entregue', {
+          leads: root.querySelector('#dv-leads').value.trim(),
+          result: root.querySelector('#dv-result').value.trim()
+        });
+        closeSheet();
+        render();
+        Toast('Marcado como entregue');
+      });
+    });
   }
 
   /* ============================================================
@@ -946,16 +1300,6 @@
         break;
       }
 
-      case 'save-traffic': {
-        var leads = document.getElementById('tr-leads').value.trim();
-        var notes = document.getElementById('tr-notes').value.trim();
-        S.state.traffic = { leads: leads, notes: notes, updatedAt: S.fmtShort(S.today()) };
-        S.save();
-        viewProducao();
-        Toast('Relatorio salvo');
-        break;
-      }
-
       case 'go':
         location.hash = btn.getAttribute('data-hash');
         break;
@@ -984,6 +1328,57 @@
       case 'paste-link':
         pasteLink();
         break;
+
+      /* ---------- equipe ---------- */
+      case 'new-member': memberForm(null); break;
+      case 'edit-member': memberForm(id); break;
+      case 'delete-member':
+        if (confirm('Excluir esta pessoa? As cobranças dela também somem.')) {
+          S.state.demands = S.state.demands.filter(function (d) { return d.memberId !== id; });
+          S.remove('team', id);
+          closeSheet();
+          location.hash = '#/equipe';
+          render();
+          Toast('Pessoa excluída');
+        }
+        break;
+
+      case 'new-demand': demandForm(null); break;
+      case 'new-demand-member': demandForm(null, { memberId: id }); break;
+      case 'new-demand-client': demandForm(null, { clientId: id }); break;
+      case 'edit-demand': demandForm(id); break;
+      case 'delete-demand':
+        if (confirm('Excluir esta cobrança?')) {
+          S.remove('demands', id); closeSheet(); render(); Toast('Cobrança excluída');
+        }
+        break;
+
+      case 'charge-demand':
+        S.chargeDemand(id);
+        render();
+        Toast('Anotado: cobrado hoje');
+        break;
+
+      case 'deliver-demand': deliverForm(id); break;
+
+      case 'fail-demand':
+        S.setDemandStatus(id, 'nao-entregue');
+        render();
+        Toast('Marcado como não entregue');
+        break;
+
+      case 'reopen-demand':
+        S.setDemandStatus(id, 'pendente');
+        render();
+        Toast('Cobrança reaberta');
+        break;
+
+      /* ---------- contadores do cliente ---------- */
+      case 'bump': {
+        S.bumpClient(id, btn.getAttribute('data-field'), Number(btn.getAttribute('data-delta')));
+        render();
+        break;
+      }
 
       case 'new-client': clientForm(null); break;
       case 'edit-client': clientForm(id); break;
@@ -1048,6 +1443,7 @@
     tarefas: viewTarefas,
     producao: viewProducao,
     clientes: viewClientes,
+    equipe: viewEquipe,
     links: viewLinks,
     notas: viewNotas
   };
@@ -1059,6 +1455,9 @@
     if (parts[0] === 'cliente' && parts[1]) {
       return { name: 'cliente', arg: parts[1], tab: 'clientes' };
     }
+    if (parts[0] === 'membro' && parts[1]) {
+      return { name: 'membro', arg: parts[1], tab: 'equipe' };
+    }
     var name = ROUTES[parts[0]] ? parts[0] : 'hoje';
     return { name: name, arg: '', tab: name };
   }
@@ -1066,11 +1465,18 @@
   function render() {
     var r = currentRoute();
     if (r.name === 'cliente') viewCliente(r.arg);
+    else if (r.name === 'membro') viewMembro(r.arg);
     else ROUTES[r.name]();
     Array.prototype.forEach.call(tabbar.querySelectorAll('.tab'), function (a) {
       if (a.getAttribute('data-tab') === r.tab) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     });
+    // Notas nao tem aba embaixo: mora no botao do topo.
+    var nb = document.getElementById('notasBtn');
+    if (nb) {
+      if (r.tab === 'notas') nb.setAttribute('aria-current', 'page');
+      else nb.removeAttribute('aria-current');
+    }
     updateBadges();
     window.scrollTo(0, 0);
   }

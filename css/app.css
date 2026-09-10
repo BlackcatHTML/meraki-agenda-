@@ -1,29 +1,34 @@
 /* ============================================================
    MERAKI
-   Paleta: champagne / rose gold / black cherry / near black.
+   Paleta: prata sobre vinho quase preto.
    Mobile-first, iPhone, uso com o polegar.
    ============================================================ */
 
 :root{
-  /* paleta base */
-  --near-black:#1C0B12;
+  /* Paleta prata sobre vinho quase preto.
+     Os nomes --champagne e --rose ficaram do visual anterior; hoje eles
+     guardam os dois tons de prata. Mantidos porque sao usados no arquivo
+     inteiro — trocar so o valor muda o app todo de uma vez. */
+  --near-black:#14080A;
   --cherry-dark:#42121F;
   --cherry:#721D35;
-  --rose:#B9857C;
-  --champagne:#EFE1CE;
+  --rose:#9A9BA1;      /* prata acinzentado: rotulos, texto secundario */
+  --champagne:#CFD0D4; /* prata claro: titulos, numeros, destaque */
 
   /* derivadas */
-  --bg:#160810;
-  --surface:#220E17;
-  --surface-2:#2B1120;
-  --raised:#341524;
-  --line:rgba(185,133,124,.16);
-  --line-2:rgba(185,133,124,.30);
-  --line-3:rgba(185,133,124,.48);
+  --bg:#14080A;
+  --surface:#1F1114;
+  --surface-2:#241417;
+  --raised:#2C191D;
+  --line:rgba(207,208,212,.14);
+  --line-2:rgba(207,208,212,.26);
+  --line-3:rgba(207,208,212,.42);
 
-  --text:var(--champagne);
-  --muted:#B49B96;
-  --faint:#8A6A6A;
+  --btn-metal:linear-gradient(180deg,#E4E5E8 0%,#B9BAC0 55%,#8F9096 100%);
+
+  --text:#ECE8E2;
+  --muted:#9A9BA1;
+  --faint:#8B7F7D;
 
   --ok:#7FA98C;
   --warn:#D9A05B;
@@ -58,11 +63,24 @@ body{
 /* fundo com o clima da paleta, sem virar enfeite */
 body::before{
   content:"";
-  position:fixed;inset:0;z-index:-1;pointer-events:none;
+  position:fixed;inset:0;z-index:-2;pointer-events:none;
   background:
-    radial-gradient(120% 60% at 85% -10%, rgba(114,29,53,.55), transparent 60%),
-    radial-gradient(90% 50% at -10% 5%, rgba(66,18,31,.6), transparent 65%),
+    radial-gradient(120% 60% at 85% -10%, rgba(114,29,53,.42), transparent 60%),
+    radial-gradient(90% 50% at -10% 5%, rgba(66,18,31,.5), transparent 65%),
     var(--bg);
+}
+
+/* Marca d'agua do dragao, atras de todas as telas. Vem numa camada propria
+   com mask radial: forte no meio, sumindo nas bordas, pra nao competir com
+   a leitura das listas. */
+body::after{
+  content:"";
+  position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:url('../img/meraki-watermark.svg') no-repeat center bottom;
+  background-size:cover;
+  opacity:.10;
+  -webkit-mask-image:radial-gradient(ellipse at 50% 38%, #000 8%, transparent 62%);
+  mask-image:radial-gradient(ellipse at 50% 38%, #000 8%, transparent 62%);
 }
 
 button,input,select,textarea{font:inherit;color:inherit}
@@ -73,7 +91,7 @@ a{color:inherit;text-decoration:none}
 .topbar{
   position:sticky;top:0;z-index:30;
   padding-top:var(--safe-t);
-  background:linear-gradient(180deg,rgba(22,8,16,.96),rgba(22,8,16,.82));
+  background:linear-gradient(180deg,rgba(20,8,10,.96),rgba(20,8,10,.82));
   backdrop-filter:saturate(140%) blur(14px);
   -webkit-backdrop-filter:saturate(140%) blur(14px);
   border-bottom:1px solid var(--line);
@@ -209,17 +227,18 @@ h1.page-title{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
   min-height:48px;padding:0 18px;width:100%;
   font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:-.01em;
-  border-radius:10px;border:1px solid var(--champagne);
-  background:var(--champagne);color:var(--near-black);
+  border-radius:10px;border:1px solid rgba(255,255,255,.25);
+  background:var(--btn-metal);color:var(--near-black);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45), 0 4px 14px rgba(0,0,0,.4);
   cursor:pointer;
 }
 .btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.1;
   stroke-linecap:round;stroke-linejoin:round}
 .btn:active{transform:translateY(1px)}
-.btn.ghost{background:transparent;color:var(--champagne);border-color:var(--line-3)}
-.btn.cherry{background:var(--cherry);border-color:var(--cherry);color:var(--champagne)}
+.btn.ghost{background:transparent;color:var(--champagne);border-color:var(--line-3);box-shadow:none}
+.btn.cherry{background:var(--cherry);border-color:var(--cherry);color:var(--champagne);box-shadow:none}
 .btn.sm{min-height:38px;width:auto;font-size:13px;padding:0 13px}
-.btn.danger{background:transparent;border-color:rgba(212,106,106,.5);color:#F0B3B3}
+.btn.danger{background:transparent;border-color:rgba(212,106,106,.5);color:#F0B3B3;box-shadow:none}
 
 /* ---------- formularios ---------- */
 .field{margin-bottom:14px}
@@ -346,7 +365,7 @@ select.input{
   display:grid;grid-template-columns:repeat(6,1fr);
   height:calc(var(--nav-h) + var(--safe-b));
   padding-bottom:var(--safe-b);
-  background:rgba(20,7,14,.94);
+  background:rgba(16,6,8,.94);
   backdrop-filter:saturate(140%) blur(16px);
   -webkit-backdrop-filter:saturate(140%) blur(16px);
   border-top:1px solid var(--line);
@@ -462,3 +481,45 @@ select.input{
   white-space:pre-wrap;word-break:break-word;
   font-size:14px;line-height:1.6;color:var(--muted);
 }
+
+/* ---------- Notas foi pro topo: a barra de baixo ja tem 6 abas ---------- */
+.topbar-right{display:flex;align-items:center;gap:6px}
+.topbar-right .icon-btn{width:36px;height:36px}
+.topbar-right .icon-btn svg{stroke:var(--rose)}
+.topbar-right .icon-btn[aria-current="page"] svg{stroke:var(--champagne)}
+
+/* ---------- contadores do cliente, mexiveis com o polegar ---------- */
+.steppers{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:11px;
+}
+.stepper{
+  background:var(--surface-2);border:1px solid var(--line);
+  border-radius:10px;padding:7px 6px 6px;text-align:center;
+}
+.stepper-label{
+  display:block;
+  font-family:var(--f-mono);font-size:8.5px;font-weight:500;
+  text-transform:uppercase;letter-spacing:.1em;color:var(--faint);
+}
+.stepper-row{
+  display:flex;align-items:center;justify-content:space-between;gap:2px;margin-top:3px;
+}
+.stepper-btn{
+  width:30px;height:30px;flex:none;
+  display:grid;place-items:center;
+  background:transparent;border:1px solid var(--line-2);border-radius:8px;
+  color:var(--champagne);font-size:17px;line-height:1;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+}
+.stepper-btn:active{background:var(--raised)}
+.stepper-n{
+  font-family:var(--f-display);font-weight:700;font-size:17px;
+  color:var(--champagne);line-height:1;
+}
+.stepper-n i{font-style:normal;font-weight:500;font-size:12px;color:var(--faint)}
+
+/* ---------- acoes de uma cobranca ---------- */
+.demand-actions{
+  display:flex;gap:6px;margin-top:11px;flex-wrap:wrap;
+}
+.demand-actions .btn{flex:1;min-width:92px}

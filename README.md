@@ -4,7 +4,8 @@ App pessoal de operação diária, feito pra viver no iPhone como se fosse
 app nativo. HTML, CSS e JavaScript puros — sem build, sem framework, sem login.
 Os dados ficam no próprio aparelho (`localStorage`).
 
-**Abas:** Hoje · Tarefas · Produção · Clientes · Links · Notas
+**Abas:** Hoje · Tarefas · Produção · Clientes · Equipe · Links
+(Notas fica no ícone do canto superior direito.)
 E, dentro de Clientes, uma ficha por cliente com dados, tarefas, links e conteúdos.
 
 ---
@@ -32,8 +33,9 @@ Pronto. É HTTPS de verdade, que é o que o push exige.
 
 - Arrastar de novo em `app.netlify.com/drop` cria um site **novo**. Pra atualizar o
   mesmo site, entre nele e use **Deploys › Drag and drop your site folder here**.
-- O app tem service worker (cache offline). Depois de um deploy, feche e reabra o
-  app; na segunda abertura a versão nova já está valendo.
+- O app tem service worker (cache offline), mas o código vai na rede primeiro:
+  depois de um deploy, feche e reabra o app e a versão nova já entra. Confira em
+  **Notas › Versão**, no rodapé.
 
 ---
 
@@ -80,7 +82,7 @@ O app já vem com o código pronto. Falta só criar a conta e colar o App ID.
 
 Duas formas, use a que preferir:
 
-- **Pelo celular:** abra o app › aba **Notas** › cole o App ID no campo
+- **Pelo celular:** abra o app › ícone de **Notas** (canto superior direito) › cole o App ID no campo
   *OneSignal App ID* › **Salvar App ID e recarregar**.
 - **Pelo arquivo:** abra `js/config.js` e coloque o código entre as aspas:
   ```js
@@ -91,7 +93,7 @@ Duas formas, use a que preferir:
 ### 3.3 Ativar no aparelho
 
 1. Abra o app **pelo ícone da tela de início**.
-2. Aba **Notas** › botão **Ativar notificações**.
+2. Toque no ícone de **Notas**, no canto superior direito › **Ativar notificações**.
 3. O iPhone pergunta se permite. Toque em **Permitir**.
 4. A bolinha ao lado tem que ficar verde: *"Conectado — este aparelho recebe push"*.
 
@@ -175,20 +177,49 @@ Copie o link no TikTok/Instagram, abra o app na aba **Links** e toque em
 
 ## 5. Como o app decide o status de cada cliente
 
-Não é campo manual: sai da produção cadastrada.
+Os números são seus: no card de cada cliente tem três contadores com **−** e **+**
+(Semana, Prontos, Agendados). Toca e muda, sem abrir formulário nenhum. O mês fica
+na barra de baixo do card e se edita em **Editar**.
 
-- **Sem conteúdo pra semana** — faltam vídeos pro mês (`produzidos < necessários`)
-  **e** não existe nenhum post agendado pra esse cliente.
-- **Precisa de novo roteiro** — o estoque está baixo: menos de 2 conteúdos na etapa
-  *Pronto* esperando pra sair.
-- **OK** — tem vídeo suficiente e coisa agendada.
+A partir desses números:
 
-A lista de clientes já vem ordenada por urgência: primeiro quem está pior, depois
-quem tem o maior buraco entre produzido e necessário.
+- **Sem conteúdo pra semana** — falta vídeo pra fechar a semana
+  (`feitos na semana < necessários na semana`) **e** não há nada agendado.
+- **Precisa de novo roteiro** — o estoque está baixo: menos de 2 vídeos prontos.
+- **OK** — a semana está coberta ou tem coisa agendada, e há estoque.
+
+A lista já vem ordenada por urgência: primeiro quem está pior, depois quem tem o
+maior buraco na semana, depois no mês, depois quem tem menos estoque.
 
 ---
 
-## 6. Backup
+## 6. Equipe — o que você cobra de cada um
+
+Cada pessoa que te entrega alguma coisa (o Joe do tráfego, o Victor da edição,
+quem entrar depois) fica cadastrada na aba **Equipe**, com nome, função e anotações.
+
+Dentro da ficha de cada um você cria **cobranças**: o que precisa receber, de qual
+cliente, e até quando. Cada cobrança tem três botões:
+
+- **Cobrei hoje** — registra a data. O app passa a mostrar *"cobrei 3x · última ter 08/09"*
+  e marca quantas vezes você cobrou **na semana passada**, que é o que costuma sumir da cabeça.
+- **Entregou** — abre um campo pra guardar o número (leads, vídeos, posts) e o que
+  foi conversado. É aqui que entra *"como foi o tráfego da Lume essa semana"*.
+- **Furou** — separa numa seção "Não entregou", pra ficar registrado.
+
+O que passou do prazo aparece em vermelho, com quantos dias de atraso, e sobe pro topo.
+
+**Vinculado ao cliente:** se a cobrança tem uma empresa, ela aparece nos dois lugares —
+na ficha da pessoa e na ficha da empresa, na seção *Equipe neste cliente*. Então dá pra
+abrir a Clínica Lume e ver tudo que o Joe já entregou (e não entregou) por ela.
+
+> O bloco de relatório de tráfego que ficava solto na Produção da semana saiu de lá.
+> Virou cobrança do Joe, com cliente vinculado. Se você já tinha preenchido alguma
+> coisa lá, ela foi convertida sozinha na primeira abertura — nada se perdeu.
+
+---
+
+## 7. Backup
 
 Os dados vivem só nesse aparelho. Se você trocar de celular ou limpar os dados do
 Safari, some tudo.
@@ -200,7 +231,7 @@ Vale exportar uma vez por mês e jogar no seu Drive.
 
 ---
 
-## 7. O que é cada arquivo
+## 8. O que é cada arquivo
 
 ```
 meraki/
@@ -211,6 +242,7 @@ meraki/
 ├── OneSignalSDKWorker.js   worker do push — precisa ficar na raiz
 ├── netlify.toml            publish + headers de cache
 ├── css/app.css             todo o visual
+├── img/                    marca d’água do fundo
 ├── js/config.js            onde vai o App ID do OneSignal
 ├── js/store.js             dados, datas, regras de status
 ├── js/push.js              integração com o OneSignal
@@ -218,13 +250,13 @@ meraki/
 └── icons/                  ícones 192, 512, maskable e o do iPhone
 ```
 
-**Paleta:** champagne `#EFE1CE` · rose gold `#B9857C` · black cherry `#721D35` ·
+**Paleta:** prata `#CFD0D4` e `#9A9BA1` sobre vinho quase preto `#14080A`.
 cherry dark `#42121F` · near black `#1C0B12`.
 **Tipografia:** Space Grotesk (títulos) + IBM Plex Sans (texto) + IBM Plex Mono (rótulos).
 
 ---
 
-## 8. Se algo der errado
+## 9. Se algo der errado
 
 | Sintoma | Causa quase sempre |
 |---|---|

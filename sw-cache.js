@@ -4,7 +4,7 @@
    assim o mesmo cache vale com ou sem push configurado.
    ============================================================ */
 
-var CACHE = 'meraki-v3';
+var CACHE = 'meraki-v4';
 
 var ASSETS = [
   './',
@@ -15,6 +15,7 @@ var ASSETS = [
   './js/store.js',
   './js/push.js',
   './js/app.js',
+  './img/meraki-watermark.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',

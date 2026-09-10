@@ -7,7 +7,7 @@
 window.MERAKI_CONFIG = {
   // Aparece na aba Notas, no fim. Serve pra conferir de olho se o que
   // esta no celular e mesmo a versao que voce acabou de subir.
-  VERSION: "2026-09-09 · 3",
+  VERSION: "2026-09-09 · 4",
 
   // Ex.: "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
   ONESIGNAL_APP_ID: "",
