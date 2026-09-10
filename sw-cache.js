@@ -4,7 +4,7 @@
    assim o mesmo cache vale com ou sem push configurado.
    ============================================================ */
 
-var CACHE = 'meraki-v7';
+var CACHE = 'meraki-v8';
 
 var ASSETS = [
   './',

@@ -195,6 +195,12 @@ A partir desses números:
 A lista já vem ordenada por urgência: primeiro quem está pior, depois quem tem o
 maior buraco na semana, depois no mês, depois quem tem menos estoque.
 
+### Roteiros
+
+O card do cliente tem uma segunda fileira de contadores: **Roteiros** (escritos
+sobre necessários), **Usados** (os que já viraram vídeo) e **Parados**, que é a
+conta dos dois — roteiro escrito esperando virar vídeo.
+
 ### Dias de post combinados
 
 Dentro de **Editar** de cada cliente tem o bloco *Dias de post combinados*, com
@@ -232,7 +238,15 @@ cliente, e até quando. Cada cobrança tem três botões:
   foi conversado. É aqui que entra *"como foi o tráfego da Lume essa semana"*.
 - **Furou** — separa numa seção "Não entregou", pra ficar registrado.
 
+Cada pessoa tem também o **valor a cobrar** (ex.: `R$ 1.200 por mês`), que aparece
+na lista e na ficha dela.
+
+Cobrança pode ser **recorrente**: ao criar, escolha *Toda semana*, *A cada 15 dias*
+ou *Todo mês*. Quando você fecha uma, o app já abre a próxima com a data certa.
+
 O que passou do prazo aparece em vermelho, com quantos dias de atraso, e sobe pro topo.
+Tudo em aberto — de tarefa ou da equipe — aparece junto em **Cobranças pendentes**,
+na tela Hoje, marcado como **Atrasado** ou **Próximo**, e conta nos números do topo.
 
 **Vinculado ao cliente:** se a cobrança tem uma empresa, ela aparece nos dois lugares —
 na ficha da pessoa e na ficha da empresa, na seção *Equipe neste cliente*. Então dá pra
@@ -244,7 +258,18 @@ abrir a Clínica Lume e ver tudo que o Joe já entregou (e não entregou) por el
 
 ---
 
-## 7. Backup
+## 7. Etapas do vídeo
+
+Cada conteúdo tem seis caixinhas, em ordem: **Roteiro → Gravação → Edição →
+Pronto → Agendado → Postado**. Marcar uma marca todas as anteriores; desmarcar
+limpa as seguintes. Não dá pra estar em Edição sem ter gravado.
+
+Cada conteúdo tem também um campo de **observação** livre, pra onde gravar, o que
+o cliente pediu, o que evitar.
+
+---
+
+## 8. Backup
 
 Os dados vivem só nesse aparelho. Se você trocar de celular ou limpar os dados do
 Safari, some tudo.
@@ -256,7 +281,7 @@ Vale exportar uma vez por mês e jogar no seu Drive.
 
 ---
 
-## 8. O que é cada arquivo
+## 9. O que é cada arquivo
 
 ```
 meraki/
@@ -281,7 +306,7 @@ cherry dark `#42121F` · near black `#1C0B12`.
 
 ---
 
-## 9. Se algo der errado
+## 10. Se algo der errado
 
 | Sintoma | Causa quase sempre |
 |---|---|

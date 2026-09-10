@@ -74,11 +74,12 @@
   function viewHoje() {
     var t = S.today();
     var tasks = S.tasksOn(t);
-    var charges = S.pendingCharges();
+    var pendentes = S.pendencias();
+    var atrasadas = pendentes.filter(function (p) { return S.prioridade(p) === 'atrasado'; });
     var overdue = S.overdueTasks();
     var pend = tasks.filter(function (x) { return !S.isDone(x, t); });
     var prod = S.productionsOfWeek(t);
-    var travando = prod.filter(function (p) { return p.stage !== 'postado'; }).length;
+    var travando = prod.filter(function (p) { return !S.stepOn(p, 'postado'); }).length;
     var prio = S.clientsByPriority().filter(function (r) { return r.calc.severity === 3; });
 
     var h = '';
@@ -87,14 +88,17 @@
 
     h += '<div class="metrics">' +
       metric(pend.length, 'Tarefas hoje', pend.length > 0) +
-      metric(charges.length, 'Cobranças', charges.length > 0) +
-      metric(travando, 'Vídeos na fila', false) +
+      metric(pendentes.length, 'Cobranças', pendentes.length > 0) +
+      metric(atrasadas.length, 'Atrasadas', atrasadas.length > 0) +
+      '</div>';
+    h += '<div class="metrics" style="grid-template-columns:1fr">' +
+      metric(travando, 'Vídeos na fila da semana', false) +
       '</div>';
 
-    // Cobrancas em destaque
+    // Cobranças: tudo em aberto, venha de tarefa ou da equipe
     h += '<section class="section">' +
-      secHead('Cobranças pendentes', charges.length) +
-      (charges.length ? charges.map(chargeCard).join('') :
+      secHead('Cobranças pendentes', pendentes.length) +
+      (pendentes.length ? pendentes.map(pendenciaCard).join('') :
         '<div class="empty">Ninguém devendo nada. Aproveita.</div>') +
       '</section>';
 
@@ -109,7 +113,7 @@
         // Sem conteúdo, o título já é o nome do cliente — não repete embaixo.
         if (p) meta.push('<span>' + esc(x.client.name) + '</span>');
         if (p) {
-          meta.push('<span class="badge">' + esc(stageLabel(p.stage)) + '</span>');
+          meta.push('<span class="badge">' + esc(S.currentStageLabel(p)) + '</span>');
           meta.push('<span>' + (x.pronto ? 'post configurado' : 'falta configurar o post') + '</span>');
         } else {
           meta.push('<span class="badge b-alert">sem conteúdo pra hoje</span>');
@@ -164,20 +168,41 @@
   }
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-  function chargeCard(c) {
-    var late = c.late;
-    var tag = late === 0 ? 'para hoje' : late === 1 ? '1 dia atrasada' : late + ' dias atrasada';
-    return '<div class="item cobranca" data-id="' + c.task.id + '">' +
-      checkBtn(c.task.id, c.date, false) +
-      '<div class="item-main">' +
-      '<p class="item-title">' + esc(c.task.title) + '</p>' +
-      '<div class="item-meta">' +
-      (c.task.who ? '<span class="badge">' + esc(c.task.who) + '</span>' : '') +
-      '<span>' + esc(tag) + '</span>' +
-      (c.task.time ? '<span class="sep">·</span><span>' + esc(c.task.time) + '</span>' : '') +
-      '</div></div>' +
-      '<div class="item-actions"><button class="icon-btn" data-act="edit-task" data-id="' + c.task.id + '" aria-label="Editar">' + ICON.edit + '</button></div>' +
+  // Um item de "Cobranças pendentes". Vem de tarefa ou da equipe — a etiqueta
+  // de prioridade é a mesma nos dois casos.
+  function pendenciaCard(p) {
+    var pri = S.prioridade(p);
+    var accent = pri === 'atrasado' ? 'alert' : (pri === 'proximo' ? 'warn' : 'cobranca');
+
+    var tag;
+    if (p.atraso > 0) tag = '<span class="badge b-alert">Atrasado · ' + p.atraso + ' dia' + (p.atraso === 1 ? '' : 's') + '</span>';
+    else if (p.atraso === 0) tag = '<span class="badge b-warn">Próximo · hoje</span>';
+    else if (pri === 'proximo') tag = '<span class="badge b-warn">Próximo · ' + esc(S.fmtRelative(p.prazo)) + '</span>';
+    else tag = '<span>' + esc(S.fmtRelative(p.prazo)) + '</span>';
+
+    var meta = [tag];
+    if (p.quem) meta.push('<span class="badge">' + esc(p.quem) + '</span>');
+    if (p.clientId) meta.push('<span>' + esc(S.clientName(p.clientId)) + '</span>');
+    meta.push('<span>' + (p.tipo === 'equipe' ? 'equipe' : 'tarefa') + '</span>');
+
+    var h = '<div class="item" data-accent="' + accent + '">';
+
+    // Tarefa se resolve marcando ali mesmo; cobrança da equipe abre a ficha.
+    if (p.tipo === 'tarefa') {
+      h += checkBtn(p.id, p.prazo, false);
+    }
+
+    h += '<div class="item-main">' +
+      '<p class="item-title">' + esc(p.titulo) + '</p>' +
+      '<div class="item-meta">' + meta.join('') + '</div>' +
       '</div>';
+
+    h += '<div class="item-actions">' +
+      (p.tipo === 'tarefa'
+        ? '<button class="icon-btn" data-act="edit-task" data-id="' + p.id + '" aria-label="Editar">' + ICON.edit + '</button>'
+        : '<a class="icon-btn" href="#/membro/' + p.ref.memberId + '" aria-label="Abrir na equipe">' + ICON.open + '</a>') +
+      '</div></div>';
+    return h;
   }
 
   function checkBtn(id, date, done) {
@@ -381,7 +406,7 @@
   function viewProducao() {
     var a = S.weekStart(weekRef), b = S.weekEnd(weekRef);
     var list = S.productionsOfWeek(weekRef);
-    var postados = list.filter(function (p) { return p.stage === 'postado'; }).length;
+    var postados = list.filter(function (p) { return S.stepOn(p, 'postado'); }).length;
 
     var h = '';
     h += '<h1 class="page-title">Produção da semana</h1>';
@@ -417,9 +442,8 @@
   }
 
   function prodCard(p) {
-    var st = S.STAGES;
-    var idx = st.findIndex(function (s) { return s.id === p.stage; });
-    var accent = p.stage === 'postado' ? 'ok' : (idx <= 1 ? 'warn' : '');
+    var idx = S.stageIndex(p);
+    var accent = S.stepOn(p, 'postado') ? 'ok' : (idx <= 1 ? 'warn' : '');
 
     var h = '<div class="item" style="display:block"' + (accent ? ' data-accent="' + accent + '"' : '') + ' data-id="' + p.id + '">';
     h += '<div style="display:flex;gap:12px;align-items:flex-start">';
@@ -433,25 +457,18 @@
       '</div>';
     h += '</div>';
 
-    h += '<div class="stages">' + st.map(function (s) {
-      return '<button class="stage" data-act="set-stage" data-id="' + p.id + '" data-stage="' + s.id + '" ' +
-        'aria-pressed="' + (p.stage === s.id ? 'true' : 'false') + '">' + esc(s.label) + '</button>';
+    // Caixinhas, em ordem. Marcar uma marca as de trás.
+    h += '<div class="steps">' + S.STAGES.map(function (s) {
+      return '<button class="step" type="button" data-act="toggle-step" data-id="' + p.id + '" ' +
+        'data-step="' + s.id + '" aria-pressed="' + (S.stepOn(p, s.id) ? 'true' : 'false') + '">' +
+        '<span class="box">' + ICON.check + '</span>' +
+        '<span>' + esc(s.label) + '</span></button>';
     }).join('') + '</div>';
 
-    h += '<div style="margin-top:6px">';
-    h += switchRow('victorOk', p.id, 'Victor confirmou edição', p.victorOk);
-    h += switchRow('postOk', p.id, 'Post configurado', p.postOk);
-    h += '</div>';
+    if (p.obs) h += '<p class="hint" style="margin-top:10px">' + esc(p.obs) + '</p>';
 
     h += '</div>';
     return h;
-  }
-
-  function switchRow(field, id, label, on) {
-    return '<button class="switch-row" type="button" data-act="toggle-flag" data-field="' + field + '" ' +
-      'data-id="' + id + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
-      '<span class="box">' + ICON.check + '</span>' +
-      '<span class="sr-label">' + esc(label) + '</span></button>';
   }
 
   function prodForm(id, preset) {
@@ -461,8 +478,7 @@
     p = p || {
       title: '',
       clientId: preset.clientId || (S.state.clients[0] || {}).id || '',
-      stage: 'roteiro',
-      victorOk: false, postOk: false,
+      steps: {}, obs: '',
       postDate: preset.postDate || ''
     };
 
@@ -477,13 +493,11 @@
       '<input class="input" id="p-title" required maxlength="140" value="' + esc(p.title) + '" placeholder="Ex.: Reels 3 mitos sobre lentes"></div>' +
       '<div class="field"><label for="p-client">Cliente</label>' +
       '<select class="input" id="p-client">' + clientOptions + '</select></div>' +
-      '<div class="row-2">' +
-      '<div class="field"><label for="p-stage">Etapa</label><select class="input" id="p-stage">' +
-      S.STAGES.map(function (s) { return opt(s.id, s.label, p.stage); }).join('') +
-      '</select></div>' +
       '<div class="field"><label for="p-date">Data do post</label>' +
       '<input class="input" type="date" id="p-date" value="' + esc(p.postDate || '') + '"></div>' +
-      '</div>' +
+      '<div class="field"><label for="p-obs">Observação</label>' +
+      '<textarea class="input" id="p-obs" style="min-height:100px" placeholder="Onde gravar, o que evitar, referência, o que o cliente pediu...">' + esc(p.obs || '') + '</textarea></div>' +
+      (isNew ? '<p class="hint" style="margin:-6px 0 14px">As etapas você marca depois, nas caixinhas do card.</p>' : '') +
       '<button class="btn" type="submit">' + (isNew ? 'Adicionar' : 'Salvar') + '</button>' +
       (isNew ? '' : '<div style="height:10px"></div><button class="btn danger" type="button" data-act="delete-prod" data-id="' + p.id + '">' + ICON.trash + 'Excluir</button>') +
       '</form>';
@@ -497,10 +511,9 @@
           id: p.id,
           title: title,
           clientId: root.querySelector('#p-client').value,
-          stage: root.querySelector('#p-stage').value,
           postDate: root.querySelector('#p-date').value,
-          victorOk: p.victorOk || false,
-          postOk: p.postOk || false
+          obs: root.querySelector('#p-obs').value.trim(),
+          steps: p.steps || {}
         });
         closeSheet();
         render();
@@ -540,6 +553,19 @@
       '</div></div>';
   }
 
+  // Roteiros seguem a mesma lógica dos vídeos: escrito, usado, e o que sobrou
+  // escrito sem virar vídeo — o estoque parado.
+  function roteiroSteppers(c, k) {
+    return '<div class="steppers">' +
+      stepper(c.id, 'roteirosProntos', 'Roteiros', k.roteirosProntos, k.roteirosNecessarios) +
+      stepper(c.id, 'roteirosUsados', 'Usados', k.roteirosUsados) +
+      '<div class="stepper"><span class="stepper-label">Parados</span>' +
+      '<div class="stepper-row" style="justify-content:center">' +
+      '<b class="stepper-n' + (k.roteirosParados ? '' : ' vazio') + '">' + k.roteirosParados + '</b>' +
+      '</div></div>' +
+      '</div>';
+  }
+
   function clientCard(r) {
     var c = r.client, k = r.calc;
     var pct = k.needed > 0 ? Math.min(100, Math.round((k.produced / k.needed) * 100)) : 0;
@@ -565,6 +591,7 @@
       stepper(c.id, 'ready', 'Prontos', k.estoque) +
       stepper(c.id, 'scheduled', 'Agendados', k.agendados) +
       '</div>';
+    h += roteiroSteppers(c, k);
 
     var agenda = S.scheduleLabel(c);
     h += '<div class="item-meta" style="margin-top:10px">' +
@@ -606,13 +633,24 @@
       '<input class="input" type="number" min="0" max="999" id="c-need" value="' + num(c.needed) + '"></div>' +
       '</div>' +
 
-      '<p class="label" style="margin-top:4px">Estoque</p>' +
+      '<p class="label" style="margin-top:4px">Estoque de vídeo</p>' +
       '<div class="row-2">' +
       '<div class="field"><label for="c-ready">Vídeos prontos</label>' +
       '<input class="input" type="number" min="0" max="999" id="c-ready" value="' + num(c.ready) + '"></div>' +
       '<div class="field"><label for="c-sched">Agendados</label>' +
       '<input class="input" type="number" min="0" max="999" id="c-sched" value="' + num(c.scheduled) + '"></div>' +
       '</div>' +
+
+      '<p class="label" style="margin-top:4px">Roteiros</p>' +
+      '<div class="row-2">' +
+      '<div class="field"><label for="c-rnec">Necessários</label>' +
+      '<input class="input" type="number" min="0" max="999" id="c-rnec" value="' + num(c.roteirosNecessarios) + '"></div>' +
+      '<div class="field"><label for="c-rpro">Já escritos</label>' +
+      '<input class="input" type="number" min="0" max="999" id="c-rpro" value="' + num(c.roteirosProntos) + '"></div>' +
+      '</div>' +
+      '<div class="field"><label for="c-ruso">Já viraram vídeo</label>' +
+      '<input class="input" type="number" min="0" max="999" id="c-ruso" value="' + num(c.roteirosUsados) + '">' +
+      '<p class="hint">Escritos menos usados = roteiro parado, pronto e esperando.</p></div>' +
 
       '<p class="label" style="margin-top:4px">Dias de post combinados</p>' +
       '<div id="schedBox"></div>' +
@@ -715,6 +753,9 @@
           neededWeek: Number(root.querySelector('#c-needw').value) || 0,
           ready: Number(root.querySelector('#c-ready').value) || 0,
           scheduled: Number(root.querySelector('#c-sched').value) || 0,
+          roteirosNecessarios: Number(root.querySelector('#c-rnec').value) || 0,
+          roteirosProntos: Number(root.querySelector('#c-rpro').value) || 0,
+          roteirosUsados: Number(root.querySelector('#c-ruso').value) || 0,
           schedule: sch,
           notes: root.querySelector('#c-notes').value.trim()
         });
@@ -813,8 +854,8 @@
       '<select class="input" id="l-client">' + clientOptions(l.clientId, '— sem cliente —') + '</select></div>' +
       '<div class="field"><label for="l-title">Como você chama isso</label>' +
       '<input class="input" id="l-title" maxlength="90" value="' + esc(l.title || '') + '" placeholder="Ex.: gancho bom pra vídeo de lentes"></div>' +
-      '<div class="field"><label for="l-note">Por que salvou</label>' +
-      '<textarea class="input" id="l-note" style="min-height:80px" placeholder="O que aproveitar: o corte, a legenda, o áudio...">' + esc(l.note || '') + '</textarea></div>' +
+      '<div class="field"><label for="l-note">Observação e roteiro</label>' +
+      '<textarea class="input" id="l-note" style="min-height:180px" placeholder="O que aproveitar (o corte, a legenda, o áudio) e o roteiro que sai daqui — pode escrever o roteiro inteiro nesse campo.">' + esc(l.note || '') + '</textarea></div>' +
       '<button class="btn" type="submit">' + (isNew ? 'Salvar link' : 'Salvar') + '</button>' +
       (isNew ? '' : '<div style="height:10px"></div><button class="btn danger" type="button" data-act="delete-link" data-id="' + l.id + '">' + ICON.trash + 'Excluir</button>') +
       '</form>';
@@ -903,6 +944,7 @@
       stepper(c.id, 'ready', 'Prontos', k.estoque) +
       stepper(c.id, 'scheduled', 'Agendados', k.agendados) +
       '</div>';
+    h += roteiroSteppers(c, k);
     h += '<div class="hero-actions">' +
       '<button class="btn ghost" data-act="edit-client" data-id="' + c.id + '">' + ICON.edit + 'Editar</button>' +
       '<button class="btn cherry" data-act="new-task-client" data-id="' + c.id + '">' + ICON.plus + 'Tarefa</button>' +
@@ -937,8 +979,6 @@
     h += daEquipe.length
       ? daEquipe.map(function (d) { return demandItem(d, true); }).join('')
       : '<div class="empty">Nada cobrado da equipe por este cliente.</div>';
-    h += '<div style="height:10px"></div>';
-    h += '<button class="btn ghost" data-act="new-demand-client" data-id="' + c.id + '">' + ICON.plus + 'Cobrar alguém por este cliente</button>';
     h += '</section>';
 
     // Dados e combinados
@@ -962,9 +1002,9 @@
     h += '<section class="section">' + secHead('Conteúdos', prods.length);
     h += prods.length
       ? prods.map(function (p) {
-          return '<div class="item" data-accent="' + (p.stage === 'postado' ? 'ok' : '') + '">' +
+          return '<div class="item" data-accent="' + (S.stepOn(p, 'postado') ? 'ok' : '') + '">' +
             '<div class="item-main"><p class="item-title">' + esc(p.title) + '</p>' +
-            '<div class="item-meta"><span class="badge">' + esc(stageLabel(p.stage)) + '</span>' +
+            '<div class="item-meta"><span class="badge">' + esc(S.currentStageLabel(p)) + '</span>' +
             (p.postDate ? '<span>post ' + esc(S.fmtShort(p.postDate)) + '</span>' : '<span>sem data</span>') +
             '</div></div>' +
             '<div class="item-actions"><button class="icon-btn" data-act="edit-prod" data-id="' + p.id + '" aria-label="Editar">' + ICON.edit + '</button></div>' +
@@ -995,11 +1035,11 @@
         '</div></div>';
     }
 
-    meta.push('<span class="badge">' + esc(stageLabel(p.stage)) + '</span>');
-    if (p.postOk) meta.push('<span class="badge b-ok">post configurado</span>');
-    else meta.push('<span>post ainda não configurado</span>');
+    meta.push('<span class="badge">' + esc(S.currentStageLabel(p)) + '</span>');
+    if (S.stepOn(p, 'agendado')) meta.push('<span class="badge b-ok">agendado</span>');
+    else meta.push('<span>ainda não agendado</span>');
 
-    var accent = p.stage === 'postado' ? 'ok' : (p.postOk ? '' : 'warn');
+    var accent = S.stepOn(p, 'postado') ? 'ok' : (S.stepOn(p, 'agendado') ? '' : 'warn');
     return '<div class="item" data-accent="' + accent + '">' +
       '<div class="item-main">' +
       '<p class="item-title">' + esc(p.title) + '</p>' +
@@ -1008,11 +1048,6 @@
       '<div class="item-actions">' +
       '<button class="icon-btn" data-act="edit-prod" data-id="' + p.id + '" aria-label="Editar">' + ICON.edit + '</button>' +
       '</div></div>';
-  }
-
-  function stageLabel(id) {
-    var s = S.STAGES.find(function (x) { return x.id === id; });
-    return s ? s.label : id;
   }
 
   /* ============================================================
@@ -1059,6 +1094,7 @@
     h += '<div class="item-main"><p class="item-title">' + esc(m.name) + '</p>' +
       '<div class="item-meta">' +
       (m.role ? '<span class="badge">' + esc(m.role) + '</span>' : '') +
+      (m.valor ? '<span class="badge b-ok">' + esc(m.valor) + '</span>' : '') +
       (k.atrasadas ? '<span class="badge b-alert">' + k.atrasadas + ' atrasada' + (k.atrasadas === 1 ? '' : 's') + '</span>' : '') +
       '</div></div>';
     h += '<div class="item-actions"><span class="icon-btn" aria-hidden="true">' + ICON.open + '</span></div></div>';
@@ -1088,6 +1124,7 @@
     h += '<div class="hero">';
     h += '<h1>' + esc(m.name) + '</h1>';
     if (m.role) h += '<span class="badge">' + esc(m.role) + '</span>';
+    if (m.valor) h += ' <span class="badge b-ok">' + esc(m.valor) + '</span>';
     h += '<div class="kv">' +
       '<div><b>' + k.abertas + '</b><span>em aberto</span></div>' +
       '<div><b>' + k.atrasadas + '</b><span>atrasadas</span></div>' +
@@ -1153,6 +1190,10 @@
     }
     var semanaPassada = S.chargedLastWeek(d).length;
     if (semanaPassada) meta.push('<span>' + semanaPassada + 'x semana passada</span>');
+    if (d.repeat && d.repeat !== 'none') {
+      var rp = S.REPEATS.find(function (x) { return x.id === d.repeat; });
+      if (rp) meta.push('<span>' + esc(rp.label.toLowerCase()) + '</span>');
+    }
 
     var h = '<div class="item" style="display:block" data-accent="' + accent + '">';
     h += '<div style="display:flex;gap:12px;align-items:flex-start">';
@@ -1191,13 +1232,15 @@
   function memberForm(id) {
     var m = id ? S.find('team', id) : null;
     var isNew = !m;
-    m = m || { name: '', role: '', notes: '' };
+    m = m || { name: '', role: '', valor: '', notes: '' };
 
     var html = '<form id="memberForm">' +
       '<div class="field"><label for="m-name">Nome</label>' +
       '<input class="input" id="m-name" required maxlength="60" value="' + esc(m.name) + '" placeholder="Ex.: Joe"></div>' +
       '<div class="field"><label for="m-role">Função</label>' +
       '<input class="input" id="m-role" maxlength="60" value="' + esc(m.role || '') + '" placeholder="Ex.: Gestor de tráfego"></div>' +
+      '<div class="field"><label for="m-valor">Valor a cobrar</label>' +
+      '<input class="input" id="m-valor" maxlength="40" value="' + esc(m.valor || '') + '" placeholder="Ex.: R$ 1.200 por mês"></div>' +
       '<div class="field"><label for="m-notes">Anotações</label>' +
       '<textarea class="input" id="m-notes" style="min-height:100px" placeholder="Contato, combinado de prazo, como prefere receber a demanda...">' + esc(m.notes || '') + '</textarea></div>' +
       '<button class="btn" type="submit">' + (isNew ? 'Cadastrar' : 'Salvar') + '</button>' +
@@ -1212,6 +1255,7 @@
         S.upsert('team', {
           id: m.id, name: name,
           role: root.querySelector('#m-role').value.trim(),
+          valor: root.querySelector('#m-valor').value.trim(),
           notes: root.querySelector('#m-notes').value.trim(),
           active: true
         });
@@ -1240,6 +1284,7 @@
       clientId: preset.clientId || '',
       title: '', detail: '',
       due: S.addDays(S.today(), 7),
+      repeat: 'none',
       status: 'pendente', chargedDates: []
     };
 
@@ -1250,8 +1295,15 @@
       '<select class="input" id="d-member">' + memberOptions(d.memberId) + '</select></div>' +
       '<div class="field"><label for="d-client">De qual cliente</label>' +
       '<select class="input" id="d-client">' + clientOptions(d.clientId, '— nenhum / interno —') + '</select></div>' +
+      '<div class="row-2">' +
       '<div class="field"><label for="d-due">Até quando</label>' +
       '<input class="input" type="date" id="d-due" value="' + esc(d.due || '') + '"></div>' +
+      '<div class="field"><label for="d-repeat">Repetição</label>' +
+      '<select class="input" id="d-repeat">' +
+      S.REPEATS.map(function (r) { return opt(r.id, r.label, d.repeat || 'none'); }).join('') +
+      '</select></div>' +
+      '</div>' +
+      '<p class="hint" style="margin:-8px 0 14px">Se repetir, ao fechar esta cobrança o app já abre a próxima sozinho.</p>' +
       '<div class="field"><label for="d-detail">Detalhe do que é</label>' +
       '<textarea class="input" id="d-detail" style="min-height:90px" placeholder="O que exatamente precisa vir: número de leads, arquivo editado, print...">' + esc(d.detail || '') + '</textarea></div>' +
       '<button class="btn" type="submit">' + (isNew ? 'Criar cobrança' : 'Salvar') + '</button>' +
@@ -1270,6 +1322,7 @@
           title: title,
           detail: root.querySelector('#d-detail').value.trim(),
           due: root.querySelector('#d-due').value,
+          repeat: root.querySelector('#d-repeat').value,
           status: d.status || 'pendente',
           chargedDates: d.chargedDates || [],
           deliveredAt: d.deliveredAt || '',
@@ -1442,20 +1495,9 @@
         if (confirm('Excluir este conteúdo?')) { S.remove('productions', id); closeSheet(); render(); Toast('Conteúdo excluído'); }
         break;
 
-      case 'set-stage': {
-        var p = S.find('productions', id);
-        if (p) { p.stage = btn.getAttribute('data-stage'); S.save(); viewProducao(); }
-        break;
-      }
-
-      case 'toggle-flag': {
-        var item = S.find('productions', id);
-        if (item) {
-          var f = btn.getAttribute('data-field');
-          item[f] = !item[f];
-          S.save();
-          btn.setAttribute('aria-pressed', item[f] ? 'true' : 'false');
-        }
+      case 'toggle-step': {
+        S.toggleStep(id, btn.getAttribute('data-step'));
+        render();
         break;
       }
 
@@ -1648,7 +1690,7 @@
   }
 
   function updateBadges() {
-    var n = S.pendingCharges().length;
+    var n = S.pendencias().filter(function (p) { return S.prioridade(p) !== 'futuro'; }).length;
     var tab = tabbar.querySelector('[data-tab="hoje"]');
     var dot = tab.querySelector('.dot');
     if (n > 0 && !dot) {

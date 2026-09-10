@@ -296,15 +296,27 @@ select.input{
   background:linear-gradient(180deg,rgba(114,29,53,.34),rgba(34,14,23,.9));
 }
 
-/* ---------- etapas da producao ---------- */
-.stages{display:flex;gap:4px;margin-top:10px}
-.stage{
-  flex:1;text-align:center;padding:7px 2px;border-radius:7px;
-  border:1px solid var(--line);background:transparent;color:var(--faint);
-  font-family:var(--f-mono);font-size:9px;font-weight:600;
-  text-transform:uppercase;letter-spacing:.04em;cursor:pointer;
+/* ---------- etapas da producao: caixinhas em ordem ---------- */
+.steps{
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px;
 }
-.stage[aria-pressed="true"]{background:var(--cherry);border-color:var(--cherry);color:var(--champagne)}
+.step{
+  display:flex;align-items:center;gap:9px;
+  padding:9px 10px;border-radius:9px;
+  border:1px solid var(--line);background:transparent;color:var(--muted);
+  font-family:var(--f-mono);font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.06em;
+  text-align:left;cursor:pointer;-webkit-appearance:none;appearance:none;
+}
+.step .box{
+  flex:none;width:20px;height:20px;border-radius:5px;
+  border:2px solid var(--line-3);display:grid;place-items:center;background:transparent;
+}
+.step .box svg{width:11px;height:11px;stroke:var(--near-black);stroke-width:3.4;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.step[aria-pressed="true"]{border-color:var(--line-2);color:var(--champagne)}
+.step[aria-pressed="true"] .box{background:var(--champagne);border-color:var(--champagne)}
+.step[aria-pressed="true"] .box svg{opacity:1}
 
 /* ---------- metricas ---------- */
 .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:22px}
@@ -534,3 +546,4 @@ select.input{
 }
 #schedBox{margin-bottom:16px}
 #schedBox .hint{margin-top:8px}
+.stepper-n.vazio{color:var(--faint)}
