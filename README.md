@@ -10,32 +10,36 @@ E, dentro de Clientes, uma ficha por cliente com dados, tarefas, links e conteú
 
 ---
 
-## 1. Colocar no ar (Netlify)
+## 1. Colocar no ar (GitHub Pages)
 
-### Caminho rápido — arrastar a pasta
+O código vive num repositório no GitHub. Subir arquivo pra lá **guarda** o código,
+mas não publica nada — quem publica é o GitHub Pages, que se liga uma vez só.
 
-1. Abra <https://app.netlify.com/drop>
-2. Arraste a pasta **`meraki`** inteira pra dentro da página.
-3. Em segundos ele devolve um endereço tipo `https://algo-aleatorio.netlify.app`.
-4. Em **Site configuration › Change site name**, troque pra algo que você lembre,
-   por exemplo `meraki`. O endereço vira `https://meraki.netlify.app`.
+### Ligar (uma vez)
 
-Pronto. É HTTPS de verdade, que é o que o push exige.
+1. No repositório, aba **Settings**
+2. Menu da esquerda, **Pages**
+3. Em *Build and deployment › Source*, escolha **Deploy from a branch**
+4. Em *Branch*, escolha **main** e a pasta **`/ (root)`**. **Save**
+5. Espere um ou dois minutos e recarregue a página. Vai aparecer o endereço,
+   no formato `https://SEU-USUARIO.github.io/NOME-DO-REPO/`
 
-### Caminho com Git (recomendado se for mexer no app depois)
+Esse é o endereço do app. É HTTPS de verdade, que é o que o push exige.
 
-1. Suba a pasta pra um repositório no GitHub.
-2. No Netlify: **Add new site › Import an existing project › GitHub** e escolha o repo.
-3. Build command: **deixe vazio**. Publish directory: **`.`** (o `netlify.toml` já diz isso).
-4. Deploy. A partir daí, todo `git push` atualiza o site sozinho.
+> O repositório precisa ser **público** pra usar Pages no plano gratuito.
+> Não tem risco: os dados do app ficam só no seu celular, não no código.
 
-### Para atualizar depois
+### Atualizar depois
 
-- Arrastar de novo em `app.netlify.com/drop` cria um site **novo**. Pra atualizar o
-  mesmo site, entre nele e use **Deploys › Drag and drop your site folder here**.
-- O app tem service worker (cache offline), mas o código vai na rede primeiro:
-  depois de um deploy, feche e reabra o app e a versão nova já entra. Confira em
-  **Notas › Versão**, no rodapé.
+1. No repositório: **Add file › Upload files**
+2. Entre na pasta `meraki` do computador, `Ctrl+A`, arraste o conteúdo
+3. **Commit changes**
+
+O Pages republica sozinho em um ou dois minutos. Dá pra acompanhar na aba
+**Actions** do repositório: quando a bolinha fica verde, está no ar.
+
+Depois disso, feche o app de vez no celular e abra de novo pelo ícone. Confira
+em **Notas › Versão**, no rodapé, se bateu com a versão que você subiu.
 
 ---
 
@@ -44,7 +48,7 @@ Pronto. É HTTPS de verdade, que é o que o push exige.
 > Esse passo não é opcional. **Sem instalar na tela de início, o iPhone não recebe
 > notificação nenhuma.** É limitação da Apple, não do app.
 
-1. Abra o endereço do Netlify **no Safari** (não funciona no Chrome do iPhone).
+1. Abra o endereço do GitHub Pages **no Safari** (não funciona no Chrome do iPhone).
 2. Toque no botão de **Compartilhar** (o quadradinho com a seta pra cima).
 3. Role e toque em **Adicionar à Tela de Início**.
 4. Confirme. O ícone do Meraki aparece na tela.
@@ -67,16 +71,16 @@ O app já vem com o código pronto. Falta só criar a conta e colar o App ID.
 4. Integração: escolha **Custom Code** (não "Typical Site" — o SDK já está embutido aqui).
 5. Preencha:
    - **Site Name**: `Meraki`
-   - **Site URL**: exatamente o endereço do Netlify, com `https://` e **sem barra no
-     final** — ex.: `https://meraki.netlify.app`
+   - **Site URL**: exatamente o endereço do GitHub Pages, com `https://` e **com a barra no
+     final** — ex.: `https://SEU-USUARIO.github.io/SEU-REPO/`
    - **Auto Resubscribe**: ligado
-   - **Default Icon URL**: `https://SEU-SITE.netlify.app/icons/icon-192.png`
+   - **Default Icon URL**: `https://SEU-USUARIO.github.io/SEU-REPO/icons/icon-192.png`
    - **"My site is not fully HTTPS"**: deixe **desligado**
 6. Salve. Na tela seguinte ele mostra um bloco de código e o **App ID**
    (um código tipo `1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d`).
    **Copie o App ID.** O bloco de código você pode ignorar — já está no app.
 7. Se ele pedir o arquivo `OneSignalSDKWorker.js`, ignore também: já está na raiz
-   do projeto e o Netlify já o serve.
+   do projeto e o GitHub Pages já o serve.
 
 ### 3.2 Ligar o App ID no app
 
@@ -88,7 +92,7 @@ Duas formas, use a que preferir:
   ```js
   ONESIGNAL_APP_ID: "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
   ```
-  Depois suba de novo pro Netlify.
+  Depois suba de novo pro GitHub.
 
 ### 3.3 Ativar no aparelho
 
@@ -113,7 +117,7 @@ manter servidor nenhum.
 4. **Delivery / Schedule**: escolha enviar em data e hora específicas, e marque a
    opção de **repetição** (aparece como *Recurring* / *Repeat*). Configure
    *toda sexta, 10:00*, e confira se o fuso está em **America/Sao_Paulo**.
-5. **Launch URL** (opcional, mas vale): `https://SEU-SITE.netlify.app/#/hoje` —
+5. **Launch URL** (opcional, mas vale): `https://SEU-USUARIO.github.io/SEU-REPO/#/hoje` —
    assim o toque na notificação abre o app já na tela certa.
 6. Salve.
 
@@ -159,7 +163,7 @@ criar um Atalho da Apple, que faz exatamente a mesma coisa e leva 2 minutos:
 3. Ainda em (i), em *Tipos de entrada*, deixe marcado **URLs** (pode desmarcar o resto).
 4. Volte e adicione a ação **Texto**. No campo do texto, escreva:
    ```
-   https://SEU-SITE.netlify.app/?url=
+   https://SEU-USUARIO.github.io/SEU-REPO/?url=
    ```
    e, logo depois do `=`, sem espaço, insira a variável **Entrada do Atalho**
    (toque no campo, aparece a barra de variáveis).
@@ -261,7 +265,7 @@ meraki/
 ├── sw.js                   service worker (quando não há OneSignal)
 ├── sw-cache.js             o cache offline em si (usado pelos dois workers)
 ├── OneSignalSDKWorker.js   worker do push — precisa ficar na raiz
-├── netlify.toml            publish + headers de cache
+
 ├── css/app.css             todo o visual
 ├── img/                    o lírio da marca d’água
 ├── js/config.js            onde vai o App ID do OneSignal
@@ -284,5 +288,5 @@ cherry dark `#42121F` · near black `#1C0B12`.
 | Não chega notificação no iPhone | Abriu pelo Safari em vez do ícone da tela de início |
 | Botão "Ativar notificações" não aparece | App ID não foi salvo, ou a permissão já foi negada nos Ajustes |
 | Mudei o app e o celular mostra o antigo | Service worker segurando a versão. Feche o app de vez e reabra |
-| "OneSignal não respondeu" | App ID digitado errado, ou a *Site URL* no OneSignal não bate com a do Netlify |
+| "OneSignal não respondeu" | App ID digitado errado, ou a *Site URL* no OneSignal não bate com a do GitHub Pages |
 | Compartilhar do TikTok não mostra o app (iPhone) | Falta o Atalho do item 4 — o iOS não suporta compartilhar direto pra app web |

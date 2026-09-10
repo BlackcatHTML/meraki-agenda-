@@ -1,22 +1,22 @@
 /* ============================================================
    MERAKI
-   Paleta: prata sobre vinho quase preto.
+   Paleta: prata sobre preto.
    Mobile-first, iPhone, uso com o polegar.
    ============================================================ */
 
 :root{
-  /* Paleta prata sobre vinho quase preto.
+  /* Paleta prata sobre fundo preto.
      Os nomes --champagne e --rose ficaram do visual anterior; hoje eles
      guardam os dois tons de prata. Mantidos porque sao usados no arquivo
      inteiro — trocar so o valor muda o app todo de uma vez. */
-  --near-black:#14080A;
+  --near-black:#000000;
   --cherry-dark:#42121F;
   --cherry:#721D35;
   --rose:#9A9BA1;      /* prata acinzentado: rotulos, texto secundario */
   --champagne:#CFD0D4; /* prata claro: titulos, numeros, destaque */
 
   /* derivadas */
-  --bg:#14080A;
+  --bg:#000000;
   --surface:#1F1114;
   --surface-2:#241417;
   --raised:#2C191D;
@@ -60,27 +60,24 @@ body{
   min-height:100dvh;
 }
 
-/* fundo com o clima da paleta, sem virar enfeite */
+/* fundo: preto puro, sem degrade nenhum */
 body::before{
   content:"";
   position:fixed;inset:0;z-index:-2;pointer-events:none;
-  background:
-    radial-gradient(120% 60% at 85% -10%, rgba(114,29,53,.42), transparent 60%),
-    radial-gradient(90% 50% at -10% 5%, rgba(66,18,31,.5), transparent 65%),
-    var(--bg);
+  background:var(--bg);
 }
 
-/* Marca d'agua do dragao, atras de todas as telas. Vem numa camada propria
-   com mask radial: forte no meio, sumindo nas bordas, pra nao competir com
+/* A flor, atras de todas as telas. Camada propria com mask radial:
+   visivel no meio, sumindo nas bordas, pra nao competir com
    a leitura das listas. */
 body::after{
   content:"";
   position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:url('../img/meraki-watermark.svg') no-repeat center bottom;
-  background-size:cover;
-  opacity:.10;
-  -webkit-mask-image:radial-gradient(ellipse at 50% 38%, #000 8%, transparent 62%);
-  mask-image:radial-gradient(ellipse at 50% 38%, #000 8%, transparent 62%);
+  background:url('../img/meraki-flor.svg') no-repeat center 62%;
+  background-size:88% auto;
+  opacity:.09;
+  -webkit-mask-image:radial-gradient(ellipse at 50% 62%, #000 18%, transparent 78%);
+  mask-image:radial-gradient(ellipse at 50% 62%, #000 18%, transparent 78%);
 }
 
 button,input,select,textarea{font:inherit;color:inherit}
@@ -91,7 +88,7 @@ a{color:inherit;text-decoration:none}
 .topbar{
   position:sticky;top:0;z-index:30;
   padding-top:var(--safe-t);
-  background:linear-gradient(180deg,rgba(20,8,10,.96),rgba(20,8,10,.82));
+  background:linear-gradient(180deg,rgba(0,0,0,.94),rgba(0,0,0,.78));
   backdrop-filter:saturate(140%) blur(14px);
   -webkit-backdrop-filter:saturate(140%) blur(14px);
   border-bottom:1px solid var(--line);
@@ -365,7 +362,7 @@ select.input{
   display:grid;grid-template-columns:repeat(6,1fr);
   height:calc(var(--nav-h) + var(--safe-b));
   padding-bottom:var(--safe-b);
-  background:rgba(16,6,8,.94);
+  background:rgba(0,0,0,.92);
   backdrop-filter:saturate(140%) blur(16px);
   -webkit-backdrop-filter:saturate(140%) blur(16px);
   border-top:1px solid var(--line);
@@ -523,3 +520,17 @@ select.input{
   display:flex;gap:6px;margin-top:11px;flex-wrap:wrap;
 }
 .demand-actions .btn{flex:1;min-width:92px}
+
+/* ---------- dias de post combinados com o cliente ---------- */
+.weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.wd{
+  height:40px;border-radius:9px;
+  border:1px solid var(--line-2);background:transparent;color:var(--muted);
+  font-family:var(--f-mono);font-size:13px;font-weight:600;
+  cursor:pointer;-webkit-appearance:none;appearance:none;
+}
+.wd[aria-pressed="true"]{
+  background:var(--champagne);border-color:var(--champagne);color:var(--near-black);
+}
+#schedBox{margin-bottom:16px}
+#schedBox .hint{margin-top:8px}

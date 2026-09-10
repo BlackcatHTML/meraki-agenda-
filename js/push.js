@@ -24,6 +24,12 @@
     error: ''
   };
 
+  // Pasta onde o app está servido. Na raiz devolve "/"; no GitHub Pages,
+  // algo como "/meraki/". Tudo que precisa de caminho absoluto usa isto.
+  function baseDir() {
+    return location.pathname.replace(/[^/]*$/, '');
+  }
+
   function isStandalone() {
     return window.navigator.standalone === true ||
       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
@@ -86,9 +92,11 @@
           window.OneSignalDeferred.push(function (OneSignal) {
             var opts = {
               appId: id,
-              // O worker na raiz importa o SDK e o cache do app.
-              serviceWorkerPath: 'OneSignalSDKWorker.js',
-              serviceWorkerParam: { scope: '/' },
+              // O worker fica ao lado do index.html e importa o SDK mais o
+              // cache do app. O caminho e calculado: assim funciona tanto na
+              // raiz de um dominio quanto numa subpasta (GitHub Pages).
+              serviceWorkerPath: baseDir() + 'OneSignalSDKWorker.js',
+              serviceWorkerParam: { scope: baseDir() },
               // Nada de pop-up automatico: a permissao e pedida por botao.
               autoResume: true,
               notifyButton: { enable: false },
